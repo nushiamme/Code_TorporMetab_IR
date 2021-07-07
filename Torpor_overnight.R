@@ -11,6 +11,7 @@ library(png)
 library(ggplot2)
 #devtools::install_github("dgrtwo/gganimate")
 library(gganimate)
+library(dplyr) ## To sum EE over one minute intervals
 
 ## Read in file
 caan02 <- read.csv(here("MR", "CAAN02_0623_WholeNight_Analyzed.csv"))
@@ -28,6 +29,37 @@ my_theme_blank <- theme_classic(base_size = 30) +
 # names(torCol) <- levels(gcb_0720$Category)
 # colScale <- scale_colour_manual(name = "Category", values = torCol)
 
+caan02$date <- gsub("/", "-", caan02$date)
+
+## Get time into a useful format
+caan02$Month <- unlist(lapply(strsplit(as.character(caan02$date), "-"), "[", 1))
+caan02$Day <- unlist(lapply(strsplit(as.character(caan02$date), "-"), "[", 2))
+caan02$Year <-  unlist(lapply(strsplit(as.character(caan02$date), "-"), "[", 3))
+caan02$StartDateFormat <- as.POSIXct(paste(paste(caan02$Year, caan02$Month, caan02$Day, sep = "-"), "00:00:00", sep = " "),
+           format='%Y-%m-%d %H:%M:%S')
+
+caan02$DateTime <- caan02$StartDateFormat + (3600*caan02$Time_hours)
+
+
+caan02$StartDateFormat[1] + (3600*21.66063)
+
+aggregate(. ~ cut(caan02$DateTime, "1 min"), 
+          caan02[setdiff(names(caan02), "DateTime")], 
+          sum)
+
+vars_keep <- names(caan02) %in% c("DateTime", "EE_J")
+caan02_sub <- caan02[vars_keep]
+
+caan02_sub %>%
+  dplyr::group_by(date = cut(caan02$DateTime, "5 min")) %>%
+  dplyr::summarize_all(sum)
+
+agg.caan02 <- aggregate(. ~ cut(caan02_sub$DateTime, "1 min"), 
+          caan02_sub[setdiff(names(caan02_sub), "date")], 
+          sum)
+names(agg.caan02) <- c("Date", "EE_J_min")
+agg.caan02$Date <- as.Date(agg.caan02$Date, "%Y-%m-%d %H:%M:%S")
+
 ## Average VO2 for every second, rather than quarter second
 seq_avg <- seq(1, length(caan02$EE_J), 4)
 EE_J_per_sec <- sapply(seq_avg, function(i) {mean(caan02$EE_J[i:(i+4)])})
@@ -42,9 +74,23 @@ ggplot(EE_J_toPlot, aes(x=SampleNo, y=EE_J_per_sec)) +
         legend.key.height=unit(3,"line"),
         axis.line.x = element_line(colour = "grey50"),
         axis.line.y = element_line(colour = "grey50")) +
-  scale_x_continuous(breaks= seq(0,9500,3600)) +
+  #scale_x_continuous(breaks= seq(0,9500,3600)) +
   #scale_y_continuous(breaks= seq(0,50,10)) +
-  xlab("Seconds") + 
+  #xlab("Seconds") + 
+  ylab("Energy expended (J) per second")
+
+## Plot
+ggplot(caan02, aes(x=DateTime, y=EE_J)) +
+  geom_point(alpha=0.8, col='grey90') + geom_smooth() + 
+  my_theme_blank + #colScale + 
+  theme(axis.text.x = element_text(size=20),
+        legend.key.height=unit(3,"line"),
+        axis.line.x = element_line(colour = "grey50"),
+        axis.line.y = element_line(colour = "grey50")) +
+  # scale_x_date(breaks = function(x) seq.Date(from = min(x), 
+  #                                            to = max(x), 
+  #                                            by = "1 hour")) +
+  # xlab("Seconds") + 
   ylab("Energy expended (J) per second")
 
 
