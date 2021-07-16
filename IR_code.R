@@ -13,7 +13,7 @@ library(dplyr) ## for renaming columns etc.
 library(plyr)
 
 here <- here::here()
-ir_dat <- read.csv(here("IR", "IR_data.csv"))
+ir_dat <- read.csv(here::here("IR", "IR_data.csv"))
 
 ## General functions
 ## Generic plot theme
@@ -43,14 +43,14 @@ ir_dat$DateFormat <- as.POSIXct(paste(paste(ir_dat$Year, ir_dat$Month, ir_dat$Da
 
 ## Melting to make plotting all temp measurements together easier
 m.ir_dat <- melt(ir_dat, id.vars = c("BirdID", "DateFormat"), measure.vars = c("Ts_max", "Teye", "Tamb"))
-m.ir_dat <- rename(m.ir_dat, Measure = variable, Temp = value)
+m.ir_dat <- dplyr::rename(m.ir_dat, Measure = variable, Temp = value)
 m.ir_dat$Measure <- plyr::revalue(as.factor(m.ir_dat$Measure), c(Ts_max = "Surface Temp", Teye= "Eye Temp", Tamb = "Ambient Temp"))
 
 
-ggplot(ir_dat, aes(Tamb, Ts_max)) + geom_point(aes(col=BirdID)) + my_theme
+ggplot(ir_dat, aes(DateFormat, Ts_max)) + geom_point(aes(col=Tamb)) + my_theme #+ facet_wrap(~BirdID, scales = "free_x")
 
 
-## Plots
+#### Plots ####
 bird1 <- ggplot(ir_dat[ir_dat$BirdID=="CAAN01",], aes(DateFormat, Ts_max)) + 
   geom_point(aes(col=BirdID)) + my_theme +
   facet_grid(BirdID~., scales = "free") + ylim(0,40) +
@@ -90,3 +90,10 @@ ggplot(m.ir_dat[m.ir_dat$BirdID=="CAAN02",], aes(DateFormat, Temp)) +  my_theme_
   scale_color_manual(values=c("magenta", "maroon", "grey30")) +
   theme(legend.key.height = unit(3, 'lines'))
   theme(legend.position = "none")
+  
+  
+ggplot(ir_dat[ir_dat$BirdID=="CAAN08",], aes(DateFormat, Ts_max)) + 
+    geom_point(aes(col=BirdID)) + my_theme +
+    facet_grid(BirdID~., scales = "free") + ylim(0,40) +
+    theme(axis.text.x = element_text(angle=90, size = 10),
+          legend.position = "none")
