@@ -13,10 +13,11 @@ library(ggplot2)
 library(gganimate)
 library(dplyr) ## To sum EE over one minute intervals
 library(janitor) ## To make a row into colnames
+library(lubridate)
 
 ## Read in files
 caan02 <- read.csv(here("MR", "CAAN02_0623_WholeNight_Analyzed.csv"))
-paths <- dir(here("MR", "CAAN08"), pattern = ".csv$")
+paths <- dir(here::here("MR", "Multiple"), pattern = ".csv$")
 names(paths) <- basename(paths)
 
 ## General theme
@@ -24,8 +25,10 @@ my_theme_blank <- theme_classic(base_size = 30) +
   theme(axis.title.y = element_text(vjust = 2),
         panel.border = element_blank())
 
+my_colors <- c("#23988aff", "#440558ff", "#9ed93aff")
 
-ThermFiles <- lapply(here("MR", "CAAN08", paths), read.csv, header=F)
+
+ThermFiles <- lapply(here::here("MR", "Multiple", paths), read.csv, header=F)
 
 
 
@@ -40,7 +43,11 @@ ThermDat <- do.call(rbind.data.frame, ThermFiles)
 ThermDat <- ThermDat %>%
   row_to_names(row_number = 1)
 ThermDat <- ThermDat[ThermDat$BirdID != "BirdID",]
-ThermDat$VO2_ml_min <- as.numeric(ThermDat$`VO2_ml/min`)
+ThermDat$VO2_ml_min <- as.numeric(ThermDat$VO2_ml_min)
+ThermDat <- ThermDat[complete.cases(ThermDat[,"VO2_ml_min"]),]
+
+ThermDat[ThermDat$BirdID=="CAAN01",1]
+
 
 
 ThermDat$StartDateFormat <- as.POSIXct(paste(paste(ThermDat$Year, ThermDat$Month, ThermDat$Day, sep = "-"), "00:00:00", sep = " "),
@@ -60,24 +67,52 @@ ThermDat$DateTime <- ThermDat$StartDateFormat + (3600*as.numeric(ThermDat$Time_h
 ThermDat$DateLubri <- lubridate::ymd_hms(ThermDat$DateTime)
 ThermDat <- dplyr::arrange(ThermDat, DateLubri)
 
+
+## 01 - Normo
+## 02 - Deep Torpor
+## 04 - Deep Torpor
+## 07 - Transition
+## 08 - Normo
+## 09 - Normo
+
+ThermDat$BirdID <- as.factor(ThermDat$BirdID)
+ThermDat$Category <- NA
+ThermDat$Category[ThermDat$BirdID==levels(ThermDat$BirdID)[1]] <- "Normothermic"
+ThermDat$Category[ThermDat$BirdID==levels(ThermDat$BirdID)[2]] <- "DeepTorpor"
+ThermDat$Category[ThermDat$BirdID==levels(ThermDat$BirdID)[3]] <- "DeepTorpor"
+ThermDat$Category[ThermDat$BirdID==levels(ThermDat$BirdID)[4]] <- "Transition"
+ThermDat$Category[ThermDat$BirdID==levels(ThermDat$BirdID)[5]] <- "Normothermic"
+ThermDat$Category[ThermDat$BirdID==levels(ThermDat$BirdID)[6]] <- "Normothermic"
+
+ThermDat$Category <- factor(ThermDat$Category, levels=c("Normothermic", "Transition", "Deep Torpor"))
+
+
 ## First 2 hours get an RER of 21.16, next hours get RER of 19.67
 ## Lighton equation: 16 + 5.164*RER	
 ## So for RER of 1 (carbs), 16 + 5.164*1 = 21.16
 ## For RER of 0.71 (protein/fat), 16 + 5.164*0.71 = 19.67
-
-## TAKES TIME TO RUN
-for(i in 1:length(ThermDat$VO2_ml_min)) {
-  if(ThermDat$DateLubri[i] < (min(ThermDat$DateLubri[i])+7200)) { ## 2 hours in seconds is 2*60*60 = 7200
-    ThermDat$EE_J[i] <- ThermDat$VO2_ml_min[i]*21.16/1000
-  } else {
-    ThermDat$EE_J[i] <- ThermDat$VO2_ml_min[i]*19.67/1000
+## TAKES A MINUTE or two TO RUN
+Tempsumm <- data.frame()
+for(n in unique(ThermDat$BirdID)) {
+  dat1 <- ThermDat[ThermDat$BirdID==n,]
+  for(i in 1:length(dat1$VO2_ml_min)) {
+    if(dat1$DateLubri[i] < (min(dat1$DateLubri[i])+7200)) { ## 2 hours in seconds is 2*60*60 = 7200
+      dat1$EE_J[i] <- dat1$VO2_ml_min[i]*21.16/1000
+    } else {
+      dat1$EE_J[i] <- dat1$VO2_ml_min[i]*19.67/1000
+    }
   }
+  Tempsumm <- rbind(Tempsumm, dat1)
 }
 
-
+head(Tempsumm)
 
 vars_keep <- names(ThermDat) %in% c("DateLubri", "EE_J")
 ThermDat_sub <- ThermDat[vars_keep]
+
+
+vars_keep <- names(Tempsumm) %in% c("DateLubri", "EE_J")
+Tempsumm_sub <- Tempsumm[vars_keep]
 
 
 # agg.ThermDat <- aggregate(. ~ cut(ThermDat_sub$DateLubri, "1 min"), 
@@ -87,11 +122,43 @@ ThermDat_sub <- ThermDat[vars_keep]
 # agg.ThermDat$Date <- as.Date(agg.ThermDat$Date, "%Y-%m-%d %H:%M:%S")
 
 ## Average VO2 for every second, rather than quarter second
-seq_avg <- seq(1, length(ThermDat$EE_J), 4)
-EE_J_per_sec <- sapply(seq_avg, function(i) {mean(ThermDat$EE_J[i:(i+4)])})
-EE_J_toPlot <- as.data.frame(cbind(EE_J_per_sec, seq(1,length(EE_J_per_sec),1)))
-names(EE_J_toPlot) <- c("EE_J_per_sec", "SampleNo")
-  
+for(n in unique(ThermDat$BirdID)) {
+  dat1 <- ThermDat[ThermDat$BirdID==n,]
+  seq_avg <- seq(1, length(ThermDat$EE_J), 4)
+  EE_J_per_sec <- sapply(seq_avg, function(i) {mean(ThermDat$EE_J[i:(i+4)])})
+  EE_J_toPlot <- as.data.frame(cbind(EE_J_per_sec, seq(1,length(EE_J_per_sec),1)))
+  names(EE_J_toPlot) <- c("EE_J_per_sec", "SampleNo")
+}
+
+
+## Average VO2 for every minute, rather than quarter second
+seq_avg_min <- seq(1, length(ThermDat$EE_J), 240)
+EE_J_per_min <- sapply(seq_avg, function(i) {mean(ThermDat$EE_J[i:(i+240)])})
+EE_J_min_toPlot <- as.data.frame(cbind(EE_J_per_sec, seq(1,length(EE_J_per_sec),1)))
+names(EE_J_min_toPlot) <- c("EE_J_per_min", "SampleNo")
+
+## Average EE for every minute
+ThermDat_sub %>%
+  group_by(DateLubri = cut(DateLubri, breaks="1 min")) %>%
+  summarize(EE_J = mean(EE_J))
+
+d2 <- data.frame(DateLubri = seq(as.POSIXct(min(ThermDat$DateLubri)), as.POSIXct((max(ThermDat$DateLubri))), 
+                                  by="1 min"))
+ThermDat_sub %>%
+  mutate(DateLubri = floor_date(DateLubri, "1 minute")) %>%
+  group_by(DateLubri) %>%
+  summarise(EE_J_min = mean(EE_J)) %>%
+  right_join(d2, by = DateLubri)
+
+
+
+ThermDat_sub %>% 
+  mutate(interval = floor_date(DateLubri, unit="min")) %>% 
+  group_by(interval) %>% 
+  mutate(EE_J_min=mean(EE_J))  %>% 
+  select(interval,EE_J_min) 
+
+
 
 ## Plot
 ggplot(EE_J_toPlot, aes(x=SampleNo, y=EE_J_per_sec)) +
@@ -106,64 +173,95 @@ ggplot(EE_J_toPlot, aes(x=SampleNo, y=EE_J_per_sec)) +
   #xlab("Seconds") + 
   ylab("Energy expended (J) per second")
 
-ggplot(ThermDat, aes(x=DateTime, y=EE_J)) +
+
+## Plot per min EE (J) values rather than per second
+ggplot(EE_J_min_toPlot, aes(x=SampleNo, y=EE_J_per_min)) +
   geom_point(alpha=0.8, col='grey90') + geom_smooth() + 
   my_theme_blank + #colScale + 
   theme(axis.text.x = element_text(size=20),
         legend.key.height=unit(3,"line"),
         axis.line.x = element_line(colour = "grey50"),
         axis.line.y = element_line(colour = "grey50")) +
-  # scale_x_date(breaks = function(x) seq.Date(from = min(x), 
-  #                                            to = max(x), 
-  #                                            by = "1 hour")) +
-  # xlab("Seconds") + 
-  ylab("Energy expended (J) per second")
+  #scale_x_continuous(breaks= seq(0,9500,3600)) +
+  #scale_y_continuous(breaks= seq(0,50,10)) +
+  #xlab("Seconds") + 
+  ylab("Energy expended (J) per minute")
+
+ggplot(ThermDat, aes(x=DateLubri, y=EE_J)) +
+  geom_point(alpha=0.8, col='grey90') + geom_smooth() + 
+  my_theme + #colScale + 
+  theme(axis.text.x = element_text(size=20),
+        legend.key.height=unit(3,"line"),
+        axis.line.x = element_line(colour = "grey50"),
+        axis.line.y = element_line(colour = "grey50")) +
+  scale_x_datetime(limits = ymd_hms(c("2021-07-07 21:00:00", "2021-07-08 03:00:00"))) +
+  ylab("Energy expended (J) per second") + xlab("Time of night")
+
+
+### ALL THE BIRDS!!!
+ggplot(Tempsumm, aes(x=DateLubri, y=EE_J)) + facet_wrap(~BirdID, scales="free") + 
+  geom_point(alpha=0.8, col='grey90') + geom_smooth(aes(col=Category)) + 
+  my_theme + 
+  scale_color_manual(values=my_colors) +
+  theme(axis.text.x = element_text(size=20),
+        legend.key.height=unit(3,"line"),
+        axis.line.x = element_line(colour = "grey50"),
+        axis.line.y = element_line(colour = "grey50")) +
+  #scale_x_datetime(limits = ymd_hms(c("2021-07-07 21:00:00", "2021-07-08 03:00:00"))) +
+  ylab("Energy expended (J) per second") + xlab("Time of night")
+
+
+## Just CAAN04
+ggplot(Tempsumm[Tempsumm$BirdID=="CAAN04",], aes(x=DateLubri, y=EE_J)) + #facet_wrap(~BirdID, scales="free") + 
+  geom_point(alpha=0.8, col='grey90') + geom_smooth(aes(col=Category)) + 
+  my_theme + 
+  scale_color_manual(values=my_colors) +
+  theme(axis.text.x = element_text(size=20),
+        legend.key.height=unit(3,"line"),
+        axis.line.x = element_line(colour = "grey50"),
+        axis.line.y = element_line(colour = "grey50")) +
+  #scale_x_datetime(limits = ymd_hms(c("2021-07-07 21:00:00", "2021-07-08 03:00:00"))) +
+  ylab("Energy expended (J) per second") + xlab("Time of night")
 
 
 
-# ## Assign colors and name categories appropriately
-# gcb_0720$Category <- factor(gcb_0720$Category, levels=c("B", "N", "R", "T"), 
-#                             labels=c("B", "Normothermy", "Rewarming", "Torpor"))
-# torCol <- c("white", "black", "red", "purple")
-# names(torCol) <- levels(gcb_0720$Category)
-# colScale <- scale_colour_manual(name = "Category", values = torCol)
+caan08_mr_plot <- ggplot(ThermDat, aes(x=DateLubri, y=EE_J*10)) +
+  geom_point(alpha=0.8, col='grey90') + geom_smooth() + 
+  my_theme + #colScale + 
+  theme(axis.text.x = element_text(size=20),
+        legend.key.height=unit(3,"line"),
+        axis.line.x = element_line(colour = "grey50"),
+        axis.line.y = element_line(colour = "grey50")) +
+  scale_x_datetime(limits = ymd_hms(c("2021-07-07 21:00:00", "2021-07-08 03:00:00"))) +
+  ylab("Energy expended (J*10) per second") + xlab("Time of night")
 
-caan02$date <- gsub("/", "-", caan02$date)
+#### From IR script, won't read here- temporary
+caan08_ir_plot <- ggplot(ir_dat[ir_dat$BirdID=="CAAN08",], aes(DateLubri, Ts_max)) + 
+  geom_point(aes(col=BirdID), size=3) + my_theme +
+  scale_y_continuous(name = "Max Surf Temp", sec.axis = sec_axis( trans=~./100, name="EE (J)")) +
+  geom_line(aes(y=Tamb), linetype="dashed") + 
+  ylim(0,40) +
+  scale_x_datetime(limits = ymd_hms(c("2021-07-07 21:00:00", "2021-07-08 03:00:00"))) +
+  theme(axis.text.x = element_text(size = 20),
+        legend.position = "none") + xlab("Time of night") + ylab(SurfTemp.lab)
 
-## Get time into a useful format
-caan02$Month <- unlist(lapply(strsplit(as.character(caan02$date), "-"), "[", 1))
-caan02$Day <- unlist(lapply(strsplit(as.character(caan02$date), "-"), "[", 2))
-caan02$Year <-  unlist(lapply(strsplit(as.character(caan02$date), "-"), "[", 3))
-caan02$StartDateFormat <- as.POSIXct(paste(paste(caan02$Year, caan02$Month, caan02$Day, sep = "-"), "00:00:00", sep = " "),
-           format='%Y-%m-%d %H:%M:%S')
+#### From IR script, won't read here- temporary
+caan08_ir_Ts_plot <- ggplot(ir_dat[ir_dat$BirdID=="CAAN08",], aes(DateLubri, Ts_max)) + 
+  geom_point(aes(col=BirdID), size=3) + my_theme +
+  scale_x_datetime(limits = ymd_hms(c("2021-07-07 21:00:00", "2021-07-08 03:00:00"))) +
+  theme(axis.text.x = element_text(size = 20),
+        legend.position = "none") + xlab("Time of night") + ylab(SurfTemp.lab)
 
-caan02$DateTime <- caan02$StartDateFormat + (3600*caan02$Time_hours)
+caan08_ir_amb_plot <- ggplot(ir_dat[ir_dat$BirdID=="CAAN08",], aes(DateLubri, Ts_max)) + 
+  my_theme + 
+  geom_line(aes(y=Tamb), linetype="dashed") + 
+  #ylim(0,40) +
+  scale_x_datetime(limits = ymd_hms(c("2021-07-07 21:00:00", "2021-07-08 03:00:00"))) +
+  theme(axis.text.x = element_text(size = 20),
+        legend.position = "none") + xlab("Time of night") + ylab(AmbTemp.lab)
 
+grid.arrange(caan08_ir_Ts_plot, caan08_ir_amb_plot, caan08_mr_plot, nrow=3)
 
-caan02$StartDateFormat[1] + (3600*21.66063)
-
-aggregate(. ~ cut(caan02$DateTime, "1 min"), 
-          caan02[setdiff(names(caan02), "DateTime")], 
-          sum)
-
-vars_keep <- names(caan02) %in% c("DateTime", "EE_J")
-caan02_sub <- caan02[vars_keep]
-
-caan02_sub %>%
-  dplyr::group_by(date = cut(caan02$DateTime, "5 min")) %>%
-  dplyr::summarize_all(sum)
-
-agg.caan02 <- aggregate(. ~ cut(caan02_sub$DateTime, "1 min"), 
-          caan02_sub[setdiff(names(caan02_sub), "date")], 
-          sum)
-names(agg.caan02) <- c("Date", "EE_J_min")
-agg.caan02$Date <- as.Date(agg.caan02$Date, "%Y-%m-%d %H:%M:%S")
-
-## Average VO2 for every second, rather than quarter second
-seq_avg <- seq(1, length(caan02$EE_J), 4)
-EE_J_per_sec <- sapply(seq_avg, function(i) {mean(caan02$EE_J[i:(i+4)])})
-EE_J_toPlot <- as.data.frame(cbind(EE_J_per_sec, seq(1,length(EE_J_per_sec),1)))
-names(EE_J_toPlot) <- c("EE_J_per_sec", "SampleNo")
 
 ## Plot
 ggplot(EE_J_toPlot, aes(x=SampleNo, y=EE_J_per_sec)) +
