@@ -32,6 +32,10 @@ my_theme_blank <- theme_classic(base_size = 30) +
   theme(axis.title.y = element_text(vjust = 2),
         panel.border = element_blank())
 
+Temp.lab <- expression(atop(paste("Temperature (", degree,"C)")))
+Tc_short.lab <- expression(atop(paste("Ta (", degree,"C)")))
+SurfTemp_short.lab <- expression(atop(paste("Ts (", degree,"C)")))
+
 ##Fixed color scale for categories
 my_colors <- c("#23988aff", "#440558ff", "#9ed93aff")
 names(my_colors) <- levels(therm_all$Category)
@@ -300,23 +304,22 @@ plot_data_list <- function (bird, data, data2) {
   Ts_plot <- ggplot(subdataIR[subdataIR$BirdID==bird,], aes(SameDate, Ts_max)) + 
     geom_point(aes(col=Category), size=2) + my_theme2 +
     geom_line(aes(col=Category, group=BirdID)) +
+    geom_hline(yintercept = 33, linetype="dotted") +
     scale_x_datetime(limits = ymd_hms(c(minTime, maxTime))) +
-    scale_y_continuous(labels = scales::number_format(accuracy = 1)) +
-    colScale +
-    ylim(15,40) +
-    theme(legend.position = "none", plot.title = element_text(hjust=0.5, size=10),
+    scale_y_continuous(labels = scales::number_format(accuracy = 1),limits = c(15,40)) +
+    colScale + theme(legend.position = "none", plot.title = element_text(hjust=0.5, size=10),
           axis.title.x = element_blank(), axis.text.x = element_blank()) + 
-    xlab("Time of night") + ylab("Ts max") + ggtitle(bird)
+    xlab("Time of night") + ylab(SurfTemp_short.lab) + ggtitle(bird)
   
   ## Just MR, narrow y-axis
   mr_plot <- ggplot(subdataMR[subdataMR$BirdID==bird,], aes(x=SameDate, y=EE_J)) +
     geom_point(alpha=0.8, col='grey90') + geom_smooth() + 
     my_theme2 + #colScale + 
     theme(axis.title.x = element_blank(), axis.text.x = element_blank(),
-          axis.text.y = element_text(size=8)) +
-    ylim(0,0.08) +
+          axis.text.y = element_text(size=10)) +
+    ylim(-0.01,0.08) + geom_hline(yintercept = 0, linetype="dotted") +
     scale_x_datetime(limits = ymd_hms(c(minTime, maxTime))) +
-    ylab("MR (J/s)") + xlab("Time of night") 
+    ylab("MR (W) \n") + xlab("Time of night") 
   
   ## Just amb temp
   amb_plot <- ggplot(subdataMR[subdataMR$BirdID==bird,], aes(SameDate, as.numeric(ChamberTemp_C))) + 
@@ -324,22 +327,22 @@ plot_data_list <- function (bird, data, data2) {
     geom_line(linetype="dashed") + 
     #ylim(0,40) +
     scale_x_datetime(limits = ymd_hms(c(minTime, maxTime))) +
-    scale_y_continuous(labels = scales::number_format(accuracy = 1)) +
+    scale_y_continuous(labels = scales::number_format(accuracy = 1),limits=c(13,28)) +
     theme(legend.position = "none",axis.text.x = element_text(size=10)) +
-    xlab("Time of night") + ylab("Tc")
+    xlab("Time of night") + ylab(Tc_short.lab)
   
   ## Stack all three
   #grid.arrange(Ts_plot, mr_plot, amb_plot, nrow=3)
   ggsave(arrangeGrob(Ts_plot, mr_plot, amb_plot, nrow=3),
-         file=paste0("MR_IR_plot_",bird, ".png"), width = 14, height = 14, units = "cm")
+         file=paste0("MR_IR_plot_",bird, ".png"), width = 7.26, height = 7.26, units = "in")
 }
 
-ir_sub <- agg_ir[agg_ir$BirdID %in% c(as.character(unique(agg_ir$BirdID[agg_ir$BirdID %in% unique(Tempsumm$BirdID)]))),]
+ir_sub <- agg_ir[agg_ir$BirdID %in% c(as.character(unique(Tempsumm$BirdID))),]
 ir_sub$BirdID <- droplevels(ir_sub$BirdID)
 birds <- unique(Tempsumm[,"BirdID"])
 lapply(X = birds, FUN = plot_data_list, data = ir_sub, data2 = Tempsumm)
 
-# Save plots to tiff. Makes a separate file for each plot.
+ # Save plots to tiff. Makes a separate file for each plot.
 for (i in unique(Tempsumm$BirdID)) {
   file_name <- paste0("MR_IR_plot_", i, ".tiff")
   tiff(file_name)
