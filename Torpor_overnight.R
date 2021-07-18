@@ -2,7 +2,7 @@
 
 ## Reading in packages
 library(here)
-library(animation)
+#library(animation)
 #library(requireR)
 #library(magick)
 library(caTools)
@@ -303,6 +303,7 @@ plot_data_list <- function (bird, data, data2) {
     scale_x_datetime(limits = ymd_hms(c(minTime, maxTime))) +
     scale_y_continuous(labels = scales::number_format(accuracy = 1)) +
     colScale +
+    ylim(15,40) +
     theme(legend.position = "none", plot.title = element_text(hjust=0.5, size=10),
           axis.title.x = element_blank(), axis.text.x = element_blank()) + 
     xlab("Time of night") + ylab("Ts max") + ggtitle(bird)
@@ -313,6 +314,7 @@ plot_data_list <- function (bird, data, data2) {
     my_theme2 + #colScale + 
     theme(axis.title.x = element_blank(), axis.text.x = element_blank(),
           axis.text.y = element_text(size=8)) +
+    ylim(0,0.08) +
     scale_x_datetime(limits = ymd_hms(c(minTime, maxTime))) +
     ylab("MR (J/s)") + xlab("Time of night") 
   
