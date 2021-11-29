@@ -1,4 +1,7 @@
-##Putting all respirometry points on a plot together for nighttime MR measurements
+## Putting all respirometry points on a plot together for nighttime MR measurements
+## Code author: Anusha Shankar
+## Data collected by Emily Blackwell, Anusha Shankar
+## Collaboration with Don Powers
 
 ## Reading in packages
 library(here)
@@ -21,11 +24,11 @@ library(plyr)
 
 
 ## Read in files
-Tempsumm_1min <- read.csv(here::here("MR_summary_1min_EE_Tc.csv"))
-
+#MRsumm_1min <- read.csv(here::here("MR_summary_1min_EE_Tc.csv"))
 #caan02 <- read.csv(here("MR", "CAAN02_0623_WholeNight_Analyzed.csv"))
 paths <- dir(here::here("MR", "Multiple"), pattern = ".csv$")
 names(paths) <- basename(paths)
+
 
 
 ## For IR
@@ -50,15 +53,17 @@ my_theme_blank <- theme_classic(base_size = 30) +
 Temp.lab <- expression(atop(paste("Temperature (", degree,"C)")))
 Tc_short.lab <- expression(atop(paste("Ta (", degree,"C)")))
 SurfTemp_short.lab <- expression(atop(paste("Ts (", degree,"C)")))
+SurfTemp.lab <- expression(atop(paste("Maximum Surface Temperature (", degree,"C)")))
 
 # ##Fixed color scale for categories
 # my_colors <- c("#23988aff", "#F38BA8", "#9ed93aff") #"#440558ff"
 # names(my_colors) <- levels(c("Normothermic", "Transition", "DeepTorpor"))
 # colScale <- scale_colour_manual(name = "Category", values = my_colors)
 
-#### Ignore this section if reading in Tempsumm_1min data frame ####
+#### Ignore this section if reading in MRsumm_1min data frame ####
 
 ThermFiles <- lapply(here::here("MR", "Multiple", paths), read.csv, header=F)
+
 
 # ### Creating a summary data frame of 
 # # Can also create automatic lists of summaries: lapply(ThermFiles_na_omit[[i]], summary)
@@ -80,62 +85,12 @@ ThermDat$StartDateFormat <- as.POSIXct(paste(paste(ThermDat$Year, ThermDat$Month
 
 
 ThermDat$DateTime <- ThermDat$StartDateFormat + (3600*as.numeric(ThermDat$Time_hours))
-
-# ## Trying out adding Time_hours column to start time
-# min(ThermDat$StartDateFormat) + (3600*21.66063)
-# 
-# aggregate(. ~ cut(ThermDat$DateTime, "1 min"), 
-#           ThermDat[setdiff(names(ThermDat), "DateTime")], 
-#           sum)
-# 
-
 ThermDat$DateLubri <- lubridate::ymd_hms(ThermDat$DateTime)
 ThermDat <- dplyr::arrange(ThermDat, DateLubri)
 
-
-## 01 - Normo
-## 02 - Deep Torpor
-## 03 - Deep Torpor
-## 04 - Deep Torpor
-## 05 - Deep Torpor
-## 06 - Normo
-## 07 - Transition
-## 08 - Normo
-## 09 - Normo
-## 10 - Normo
-## 11 - Transition
-## 12 - Transition
-## 13 - Transition
-## 14 - Deep Torpor
-## 15 - Transition
-## 16 - Deep Torpor
-## 17 - Normo
-## 18 - Transition
-
-#ThermDat$Category <- NA
-
-  
+## Merging categories csv and ThermDat data frame to make sure transition times and categories are identified
 ThermDat$BirdID <- as.factor(ThermDat$BirdID)
 ThermDat <- merge(ThermDat, categories, "BirdID")
-
-# ThermDat$Category[ThermDat$BirdID=="CAAN01"] <- "Normothermic"
-# ThermDat$Category[ThermDat$BirdID=="CAAN02"] <- "DeepTorpor"
-# ThermDat$Category[ThermDat$BirdID=="CAAN03"] <- "DeepTorpor"
-# ThermDat$Category[ThermDat$BirdID=="CAAN04"] <- "DeepTorpor"
-# ThermDat$Category[ThermDat$BirdID=="CAAN05"] <- "DeepTorpor"
-# ThermDat$Category[ThermDat$BirdID=="CAAN06"] <- "Normothermic"
-# ThermDat$Category[ThermDat$BirdID=="CAAN07"] <- "Transition"
-# ThermDat$Category[ThermDat$BirdID=="CAAN08"] <- "Normothermic"
-# ThermDat$Category[ThermDat$BirdID=="CAAN09"] <- "Normothermic"
-# ThermDat$Category[ThermDat$BirdID=="CAAN10"] <- "Normothermic"
-# ThermDat$Category[ThermDat$BirdID=="CAAN11"] <- "Transition"
-# ThermDat$Category[ThermDat$BirdID=="CAAN12"] <- "Transition"
-# ThermDat$Category[ThermDat$BirdID=="CAAN13"] <- "Transition"
-# ThermDat$Category[ThermDat$BirdID=="CAAN14"] <- "DeepTorpor"
-# ThermDat$Category[ThermDat$BirdID=="CAAN15"] <- "Transition"
-# ThermDat$Category[ThermDat$BirdID=="CAAN16"] <- "DeepTorpor"
-# ThermDat$Category[ThermDat$BirdID=="CAAN17"] <- "Normothermic"
-# ThermDat$Category[ThermDat$BirdID=="CAAN18"] <- "Transition"
 ThermDat$Category <- factor(ThermDat$Category, levels=c("Normothermic", "Transition", "DeepTorpor"))
 
 
@@ -153,101 +108,110 @@ colScale <- scale_colour_manual(name = "Category", values = my_colors)
 ## So for RER of 1 (carbs), 16 + 5.164*1 = 21.16
 ## For RER of 0.71 (protein/fat), 16 + 5.164*0.71 = 19.67
 ## TAKES A MINUTE or two TO RUN
-Tempsumm <- data.frame()
+MRsumm <- data.frame()
 for(n in unique(ThermDat$BirdID)) {
   dat1 <- ThermDat[ThermDat$BirdID==n,]
   for(i in 1:length(dat1$VO2_ml_min)) {
-    if(dat1$DateLubri[i] < (min(dat1$DateLubri[i])+7200)) { ## 2 hours in seconds is 2*60*60 = 7200
+    if(dat1$DateLubri[i] < (min(dat1$DateLubri)+7200)) { ## 2 hours in seconds is 2*60*60 = 7200
       dat1$EE_J[i] <- dat1$VO2_ml_min[i]*21.16/1000
     } else {
       dat1$EE_J[i] <- dat1$VO2_ml_min[i]*19.67/1000
     }
   }
-  Tempsumm <- rbind(Tempsumm, dat1)
+  MRsumm <- rbind(MRsumm, dat1)
 }
 
-Tempsumm_safe <- Tempsumm
+MRsumm_safe <- MRsumm
 
-head(Tempsumm)
-Tempsumm$ChamberTemp_C <- as.numeric(Tempsumm$ChamberTemp_C)
-Tempsumm$AmbientTemp_C <- as.numeric(Tempsumm$AmbientTemp_C)
 
-Tempsumm$TransitionTime <- as.POSIXct(paste(paste("2021", "7", "23", sep = "-"), 
-                                          paste(str_pad(substr(Tempsumm$Time_transitionStart, 1, 2), width=2, side="left", pad="0"), 
-                                                str_pad(substr(Tempsumm$Time_transitionStart, 3, 4), width=2, side="left", pad="0"), "00", sep = ":"), sep=" "),
+head(MRsumm)
+MRsumm$ChamberTemp_C <- as.numeric(MRsumm$ChamberTemp_C)
+MRsumm$AmbientTemp_C <- as.numeric(MRsumm$AmbientTemp_C)
+
+MRsumm$TransitionTime <- as.POSIXct(paste(paste("2021", "7", "23", sep = "-"), 
+                                          paste(str_pad(substr(MRsumm$Time_transitionStart, 1, 2), width=2, side="left", pad="0"), 
+                                                str_pad(substr(MRsumm$Time_transitionStart, 3, 4), width=2, side="left", pad="0"), "00", sep = ":"), sep=" "),
                                     format='%Y-%m-%d %H:%M', tz="America/Los_Angeles")
 
-Tempsumm$SameDate <- as.POSIXct(paste(paste("2021", "7", "23", sep = "-"), 
-                                    as_hms(Tempsumm$DateLubri), sep=" "),
+MRsumm$SameDate <- as.POSIXct(paste(paste("2021", "7", "23", sep = "-"), 
+                                    as_hms(MRsumm$DateLubri), sep=" "),
                               format='%Y-%m-%d %H:%M:%S', tz="America/Los_Angeles")
-Tempsumm$SameDate[Tempsumm$Hour<19] <- Tempsumm$SameDate[Tempsumm$Hour<19]+86400
-Tempsumm$SameDate <- lubridate::ymd_hms(Tempsumm$SameDate, tz = "America/Los_Angeles")
+MRsumm$SameDate[MRsumm$Hour<19] <- MRsumm$SameDate[MRsumm$Hour<19]+86400
+MRsumm$SameDate <- lubridate::ymd_hms(MRsumm$SameDate, tz = "America/Los_Angeles")
+
 
 ## Summarize by second
-Tempsumm_1sec <- as.data.frame(Tempsumm %>%
+MRsumm_1sec <- as.data.frame(MRsumm %>%
                                  select(DateTime, BirdID, Category, TransitionTime, EE_J) %>%
                                  group_by(BirdID, TransitionTime, Category, DateLubri = cut(DateTime, breaks="1 sec")) %>%
                                  dplyr::summarize(EE_J = mean(EE_J)) %>%
                                  ungroup())
 
-Tempsumm_1sec$DateLubri <- lubridate::ymd_hms(Tempsumm_1sec$DateLubri)
-Tempsumm_1sec$SameDate <- as.POSIXct(paste(paste("2021", "7", "23", sep = "-"), 
-                                           as_hms(ymd_hms(Tempsumm_1sec$DateLubri)), sep=" "),
+MRsumm_1sec$DateLubri <- lubridate::ymd_hms(MRsumm_1sec$DateLubri)
+MRsumm_1sec$SameDate <- as.POSIXct(paste(paste("2021", "7", "23", sep = "-"), 
+                                           as_hms(ymd_hms(MRsumm_1sec$DateLubri)), sep=" "),
                                      format='%Y-%m-%d %H:%M:%S', tz="America/Los_Angeles")
-Tempsumm_1sec$SameDate[Tempsumm_1sec$SameDate<"2021-07-23 19:00:00"] <- Tempsumm_1sec$SameDate[Tempsumm_1sec$SameDate<"2021-07-23 19:00:00"]+86400
-Tempsumm_1sec$DateLubri <- lubridate::ymd_hms(Tempsumm_1sec$SameDate, tz = "America/Los_Angeles")
+MRsumm_1sec$SameDate[MRsumm_1sec$SameDate<"2021-07-23 19:00:00"] <- MRsumm_1sec$SameDate[MRsumm_1sec$SameDate<"2021-07-23 19:00:00"]+86400
+MRsumm_1sec$DateLubri <- lubridate::ymd_hms(MRsumm_1sec$SameDate, tz = "America/Los_Angeles")
 
-Tempsumm_1sec$EE_J_sec <- Tempsumm_1sec$EE_J*4
+MRsumm_1sec$EE_J_sec <- MRsumm_1sec$EE_J*4
 
-#mTempsumm_1sec <- merge(Tempsumm_1sec, Categories)
-#Tempsumm_1sec$TransitionTime <- as.POSIXct(paste(paste("2021", "7", "23", sep = "-"), 
- #                                           paste(str_pad(substr(Tempsumm_1sec$Time_transitionStart, 1, 2), width=2, side="left", pad="0"), 
-  #                                                str_pad(substr(Tempsumm_1sec$Time_transitionStart, 3, 4), width=2, side="left", pad="0"), "00", sep = ":"), sep=" "),
+#mMRsumm_1sec <- merge(MRsumm_1sec, Categories)
+#MRsumm_1sec$TransitionTime <- as.POSIXct(paste(paste("2021", "7", "23", sep = "-"), 
+ #                                           paste(str_pad(substr(MRsumm_1sec$Time_transitionStart, 1, 2), width=2, side="left", pad="0"), 
+  #                                                str_pad(substr(MRsumm_1sec$Time_transitionStart, 3, 4), width=2, side="left", pad="0"), "00", sep = ":"), sep=" "),
    #                                   format='%Y-%m-%d %H:%M', tz="America/Los_Angeles")
 
 
 ## Summarize by minute
-Tempsumm_1min <- as.data.frame(Tempsumm %>%
+MRsumm_1min_forMerge <- as.data.frame(MRsumm %>%
                                  select(DateTime, BirdID, Category, ChamberTemp_C, EE_J) %>%
                                  group_by(BirdID, Category, DateLubri = cut(DateTime, breaks="1 min")) %>%
                                  dplyr::summarize(across(c("EE_J", "ChamberTemp_C"), ~ mean(.x, na.rm = TRUE))) %>%
                                  ungroup())
-# 
-# EE_1min <- as.data.frame(Tempsumm %>%
-#                 select(DateTime, BirdID, Category, EE_J) %>%
-#                 group_by(BirdID, Category, DateLubri = cut(DateTime, breaks="1 min")) %>%
-#                 dplyr::summarize(EE_J_min=sum(EE_J)) %>%
-#                 ungroup())
-# 
-# Tc_1min <- as.data.frame(Tempsumm %>%
-#                            select(DateTime, BirdID, Category, ChamberTemp_C) %>%
-#                            group_by(BirdID, Category, DateLubri = cut(DateTime, breaks="1 min")) %>%
-#                            dplyr::summarize(ChamberTemp_C=mean(ChamberTemp_C)) %>%
-#                            ungroup())
-# 
-# Tempsumm_1min <- merge(EE_1min, Tc_1min)
 
-Tempsumm_1min$DateLubri <- lubridate::ymd_hms(Tempsumm_1min$DateLubri)
-Tempsumm_1min$SameDate <- as.POSIXct(paste(paste("2021", "7", "23", sep = "-"), 
-                                      as_hms(ymd_hms(Tempsumm_1min$DateLubri)), sep=" "),
+EE_1min_forMerge <- as.data.frame(MRsumm %>%
+                select(DateTime, BirdID, Category, EE_J) %>%
+                group_by(BirdID, Category, DateLubri = cut(DateTime, breaks="1 min")) %>%
+                dplyr::summarize(EE_J_min=sum(EE_J)) %>%
+                ungroup())
+
+Tc_1min <- as.data.frame(MRsumm %>%
+                           select(DateTime, BirdID, Category, ChamberTemp_C) %>%
+                           group_by(BirdID, Category, DateLubri = cut(DateTime, breaks="1 min")) %>%
+                           dplyr::summarize(ChamberTemp_C=mean(ChamberTemp_C)) %>%
+                           ungroup())
+
+ir_forMerge <- as.data.frame(ir_dat %>%
+                           select(DateTime, BirdID, Category, ChamberTemp_C) %>%
+                           group_by(BirdID, Category, DateLubri = cut(DateTime, breaks="1 min")) %>%
+                           dplyr::summarize(ChamberTemp_C=mean(ChamberTemp_C)) %>%
+                           ungroup())
+
+Merged_1min <- merge(EE_1min_forMerge, Tc_1min)
+
+MRsumm_1min <- MRsumm_1min_forMerge
+MRsumm_1min$DateLubri <- lubridate::ymd_hms(MRsumm_1min$DateLubri)
+MRsumm_1min$SameDate <- as.POSIXct(paste(paste("2021", "7", "23", sep = "-"), 
+                                      as_hms(ymd_hms(MRsumm_1min$DateLubri)), sep=" "),
                                 format='%Y-%m-%d %H:%M:%S', tz="America/Los_Angeles")
-Tempsumm_1min$SameDate[Tempsumm_1min$SameDate<"2021-07-23 19:00:00"] <- Tempsumm_1min$SameDate[Tempsumm_1min$SameDate<"2021-07-23 19:00:00"]+86400
-Tempsumm_1min$DateLubri <- lubridate::ymd_hms(Tempsumm_1min$SameDate, tz = "America/Los_Angeles")
+MRsumm_1min$SameDate[MRsumm_1min$SameDate<"2021-07-23 19:00:00"] <- MRsumm_1min$SameDate[MRsumm_1min$SameDate<"2021-07-23 19:00:00"]+86400
+MRsumm_1min$DateLubri <- lubridate::ymd_hms(MRsumm_1min$SameDate, tz = "America/Los_Angeles")
 
-Tempsumm_1min$EE_J_min <- Tempsumm_1min$EE_J*60*4
+MRsumm_1min$EE_J_min <- MRsumm_1min$EE_J*60*4
 
-write.csv(x = Tempsumm_1min, file = here::here("MR_summary_1min_EE_Tc.csv"))
+write.csv(x = MRsumm_1min, file = here::here("MR_summary_1min_EE_Tc.csv"))
 
 # 
 # vars_keep <- names(ThermDat) %in% c("DateLubri", "EE_J")
 # ThermDat_sub <- ThermDat[vars_keep]
 # 
 # 
-# vars_keep <- names(Tempsumm) %in% c("BirdID", "DateLubri", "EE_J", "Category")
-# Tempsumm_sub <- Tempsumm[vars_keep]
+# vars_keep <- names(MRsumm) %in% c("BirdID", "DateLubri", "EE_J", "Category")
+# MRsumm_sub <- MRsumm[vars_keep]
 
 # ## Extracting Tc and Ta values for IR data
-# Temps <- Tempsumm %>% 
+# Temps <- MRsumm %>% 
 #   select(c(DateLubri, ChamberTemp_C, AmbientTemp_C))
 # write.csv(Temps, "IR//Thermocouple_Temps.csv")
 
@@ -287,24 +251,6 @@ ir_dat$SameDate <- lubridate::ymd_hms(ir_dat$SameDate, tz = "America/Los_Angeles
 # ir_dat$Category <- NA
 ir_dat$BirdID <- as.factor(ir_dat$BirdID)
 ir_dat <- merge(ir_dat, categories, "BirdID")
-# ir_dat$Category[ir_dat$BirdID=="CAAN01"] <- "Normothermic"
-# ir_dat$Category[ir_dat$BirdID=="CAAN02"] <- "DeepTorpor"
-# ir_dat$Category[ir_dat$BirdID=="CAAN03"] <- "DeepTorpor"
-# ir_dat$Category[ir_dat$BirdID=="CAAN04"] <- "DeepTorpor"
-# ir_dat$Category[ir_dat$BirdID=="CAAN05"] <- "DeepTorpor"
-# ir_dat$Category[ir_dat$BirdID=="CAAN06"] <- "Normothermic"
-# ir_dat$Category[ir_dat$BirdID=="CAAN07"] <- "Transition"
-# ir_dat$Category[ir_dat$BirdID=="CAAN08"] <- "Normothermic"
-# ir_dat$Category[ir_dat$BirdID=="CAAN09"] <- "Normothermic"
-# ir_dat$Category[ir_dat$BirdID=="CAAN10"] <- "Normothermic"
-# ir_dat$Category[ir_dat$BirdID=="CAAN11"] <- "Transition"
-# ir_dat$Category[ir_dat$BirdID=="CAAN12"] <- "Transition"
-# ir_dat$Category[ir_dat$BirdID=="CAAN13"] <- "Transition"
-# ir_dat$Category[ir_dat$BirdID=="CAAN14"] <- "DeepTorpor"
-# ir_dat$Category[ir_dat$BirdID=="CAAN15"] <- "Transition"
-# ir_dat$Category[ir_dat$BirdID=="CAAN16"] <- "DeepTorpor"
-# ir_dat$Category[ir_dat$BirdID=="CAAN17"] <- "Normothermic"
-# ir_dat$Category[ir_dat$BirdID=="CAAN18"] <- "Transition"
 
 ir_dat$Ts_max <- as.numeric(ir_dat$Ts_max)
 ir_dat$Category <- factor(ir_dat$Category, levels=c("Normothermic", "Transition", "DeepTorpor"))
@@ -321,7 +267,29 @@ ir_dat$TransitionTime <- as.POSIXct(paste(paste("2021", "7", "23", sep = "-"),
 
 ## Add Tc and Ta column from thermocouple data into ir_dat
 # #Temps$DateLubri <- lubridate::ymd_hms(Temps$DateLubri, tz = "America/Los_Angeles")
-# agg_ir <- merge(ir_dat, Tc_sub, by="DateLubri", all = T)
+## Average EE for every minute
+MR_ToMerge_1min <- as.data.frame(MRsumm %>%
+  group_by(DateLubri = cut(DateLubri, breaks="1 min"), BirdID) %>%
+  dplyr::summarize(EE_J = sum(EE_J)) %>%
+  ungroup())
+
+IR_ToMerge <- as.data.frame(ir_dat %>%
+                              group_by(DateLubri = cut(DateLubri, breaks="1 min"), BirdID) %>%
+                              dplyr::summarize(Ts_max = mean(Ts_max)) %>%
+                              ungroup())
+
+agg_ir_mr <- merge(IR_ToMerge, MR_ToMerge_1min,  by=c("DateLubri", "BirdID"))
+m.agg <- merge(agg_ir_mr, categories)
+m.agg$Category <- factor(m.agg$Category, levels=c("Normothermic", "Transition", "DeepTorpor"))
+
+ggplot(m.agg, aes(EE_J, Ts_max)) + geom_point(aes(col=Category)) + my_theme + facet_wrap(.~BirdID)  +
+  colScale
+
+
+ggplot(m.agg, aes(EE_J, Ts_max)) + geom_point(aes(col=Category), size=2) + my_theme + #facet_wrap(.~BirdID)  +
+  colScale
+
+
 # agg_ir$AmbientTemp_C <- as.numeric(agg_ir$Ta)
 # agg_ir$ChamberTemp_C <- as.numeric(agg_ir$Tc)
 
@@ -331,27 +299,39 @@ ir_dat$TransitionTime <- as.POSIXct(paste(paste("2021", "7", "23", sep = "-"),
 # m.ir_dat <- dplyr::rename(m.ir_dat, Measure = variable, Temp = value)
 # m.ir_dat$Measure <- plyr::revalue(as.factor(m.ir_dat$Measure), c(Ts_max = "Surface Temp", Teye= "Eye Temp", Tamb = "Ambient Temp"))
 
+ggplot(ir_dat, aes(SameDate, Ts_max))
 
-ggplot(ir_dat, aes(SameDate, Ts_max)) + geom_point(aes(col=Tamb)) + my_theme + facet_wrap(~BirdID, scales = "free_x") +
-  scale_color_gradient(low="blue", high="red") + geom_hline(yintercept = 33, linetype="dotted") + ylab(SurfTemp_short.lab)
+ir_dat$Tamb_chr <- as.character(ir_dat$Tamb) 
+p <- ggplot(data=ir_dat, mapping=aes(SameDate, Ts_max)) + my_theme + facet_wrap(.~BirdID) +
+  geom_point(aes(col=Category)) + geom_line(aes(group=BirdID, col=Category))
+
+p
+
+ggplot(ir_dat, aes(SameDate, Ts_max)) +
+  geom_point(aes(col=Tamb)) + 
+  my_theme + 
+  facet_grid(Category~., scales = "free_x") +
+  scale_color_gradient(low="blue", high="red") +
+  geom_hline(yintercept = 33, linetype="dotted") + 
+  ylab(SurfTemp_short.lab)
 
 
 ggplot(ir_dat, aes(SameDate, Ts_max)) + geom_point(aes(col=Category)) + my_theme + facet_wrap(~BirdID, scales = "free_x") +
   geom_line(aes(SameDate, Tamb)) +
   colScale + geom_hline(yintercept = 30, linetype="dotted") + ylab(Temp.lab)
 
-Tempsumm_1min$BirdID <- as.factor(Tempsumm_1min$BirdID)
-Tempsumm_1min$DateLubri <- lubridate::ymd_hms(Tempsumm_1min$DateLubri)
-Tempsumm_1min$SameDate <- as.POSIXct(Tempsumm_1min$SameDate)
+MRsumm_1min$BirdID <- as.factor(MRsumm_1min$BirdID)
+MRsumm_1min$DateLubri <- lubridate::ymd_hms(MRsumm_1min$DateLubri)
+MRsumm_1min$SameDate <- as.POSIXct(MRsumm_1min$SameDate)
 
 
 # ## Making a "same date" column to align all times on x-axis
-# Tempsumm$SameDate <- as.POSIXct(paste(paste("2021", "7", "23", sep = "-"), 
-#                                       as_hms(ymd_hms(Tempsumm$DateLubri)), sep=" "),
+# MRsumm$SameDate <- as.POSIXct(paste(paste("2021", "7", "23", sep = "-"), 
+#                                       as_hms(ymd_hms(MRsumm$DateLubri)), sep=" "),
 #                               format='%Y-%m-%d %H:%M:%S', tz="America/Los_Angeles")
-# Tempsumm$SameDate[Tempsumm$SameDate<"2021-07-23 19:00:00"] <- Tempsumm$SameDate[Tempsumm$SameDate<"2021-07-23 19:00:00"]+86400
-# Tempsumm$DateLubri <- lubridate::ymd_hms(Tempsumm$SameDate, tz = "America/Los_Angeles")
-#summary(Tempsumm$SameDate)
+# MRsumm$SameDate[MRsumm$SameDate<"2021-07-23 19:00:00"] <- MRsumm$SameDate[MRsumm$SameDate<"2021-07-23 19:00:00"]+86400
+# MRsumm$DateLubri <- lubridate::ymd_hms(MRsumm$SameDate, tz = "America/Los_Angeles")
+#summary(MRsumm$SameDate)
 
 # agg.ThermDat <- aggregate(. ~ cut(ThermDat_sub$DateLubri, "1 min"), 
 #                         ThermDat_sub[setdiff(names(ThermDat_sub), "date")], 
@@ -360,29 +340,25 @@ Tempsumm_1min$SameDate <- as.POSIXct(Tempsumm_1min$SameDate)
 # agg.ThermDat$Date <- as.Date(agg.ThermDat$Date, "%Y-%m-%d %H:%M:%S")
 
 # ## Average VO2 for every second, rather than quarter second
-# for(n in unique(Tempsumm$BirdID)) {
-#   dat1 <- ThermDat[Tempsumm$BirdID==n,]
-#   seq_avg <- seq(1, length(Tempsumm$EE_J), 4)
-#   EE_J_per_sec <- sapply(seq_avg, function(i) {mean(Tempsumm$EE_J[i:(i+4)])})
+# for(n in unique(MRsumm$BirdID)) {
+#   dat1 <- ThermDat[MRsumm$BirdID==n,]
+#   seq_avg <- seq(1, length(MRsumm$EE_J), 4)
+#   EE_J_per_sec <- sapply(seq_avg, function(i) {mean(MRsumm$EE_J[i:(i+4)])})
 #   EE_J_toPlot <- as.data.frame(cbind(EE_J_per_sec, seq(1,length(EE_J_per_sec),1)))
 #   names(EE_J_toPlot) <- c("EE_J_per_sec", "SampleNo")
 # }
 
 
 # ## Average VO2 for every minute, rather than quarter second
-# seq_avg_min <- seq(1, length(Tempsumm$EE_J), 240)
-# EE_J_per_min <- sapply(seq_avg, function(i) {mean(Tempsumm$EE_J[i:(i+240)])})
+# seq_avg_min <- seq(1, length(MRsumm$EE_J), 240)
+# EE_J_per_min <- sapply(seq_avg, function(i) {mean(MRsumm$EE_J[i:(i+240)])})
 # EE_J_min_toPlot <- as.data.frame(cbind(EE_J_per_sec, seq(1,length(EE_J_per_sec),1)))
 # names(EE_J_min_toPlot) <- c("EE_J_per_min", "SampleNo")
 
-# ## Average EE for every minute
-# Tempsumm_sub %>%
-#   group_by(DateLubri = cut(DateLubri, breaks="1 min"), BirdID) %>%
-#   summarize(EE_J = mean(EE_J))
 # 
-# # d2 <- data.frame(DateLubri = seq(as.POSIXct(min(Tempsumm_sub$DateLubri)), as.POSIXct((max(Tempsumm_sub$DateLubri))), 
+# # d2 <- data.frame(DateLubri = seq(as.POSIXct(min(MRsumm_sub$DateLubri)), as.POSIXct((max(MRsumm_sub$DateLubri))), 
 # #                                   by="1 min"))
-# MR_all<- Tempsumm_sub %>%
+# MR_all<- MRsumm_sub %>%
 #   mutate(DateLubri = floor_date(DateLubri, "1 minute")) %>%
 #   group_by(DateLubri, BirdID) %>%
 #   summarise(EE_J_min = mean(EE_J))
@@ -434,7 +410,7 @@ ggplot(ThermDat, aes(x=DateLubri, y=EE_J)) +
   ylab("Energy expended (J) per second") + xlab("Time of night")
 
 ### ALL THE BIRDS!!!
-ggplot(Tempsumm, aes(x=DateLubri, y=EE_J)) + facet_wrap(~BirdID, scales="free") +
+ggplot(MRsumm, aes(x=DateLubri, y=EE_J)) + facet_wrap(~BirdID, scales="free") +
   geom_point(alpha=0.8, col='grey90') + geom_smooth(aes(col=Category)) + 
   my_theme + scale_color_manual(values=my_colors) +
   theme(axis.text.x = element_text(size=20),
@@ -445,7 +421,7 @@ ggplot(Tempsumm, aes(x=DateLubri, y=EE_J)) + facet_wrap(~BirdID, scales="free") 
   ylab("Energy expended (J) per second") + xlab("Time of night")
 
 ## All birds, 5 min intervals
-ggplot(Tempsumm_1min, aes(x=DateLubri, y=EExp_J)) + facet_wrap(~BirdID, scales="free") +
+ggplot(MRsumm_1min, aes(x=DateLubri, y=EExp_J)) + facet_wrap(~BirdID, scales="free") +
   geom_point(alpha=0.8, col='grey90') + geom_smooth(aes(col=Category)) + 
   my_theme + scale_color_manual(values=my_colors) +
   theme(axis.text.x = element_text(size=20),
@@ -458,8 +434,8 @@ ggplot(Tempsumm_1min, aes(x=DateLubri, y=EExp_J)) + facet_wrap(~BirdID, scales="
 ### ALL THE BIRDS!!!
 ggplot(NULL, aes(x=DateLubri, y=EE_J)) + facet_wrap(~BirdID, scales="free") +
   scale_y_continuous(name = "Max Ts",sec.axis=sec_axis(trans=~.*1000,name='MR (Watts)'))+
-  geom_point(data=Tempsumm, alpha=0.8, col='grey90') + geom_smooth(data=Tempsumm, aes(col=Category)) + 
-  geom_smooth(data=ir_dat[ir_dat$BirdID %in% Tempsumm$BirdID,], aes(x=DateLubri, y=Ts_max)) +
+  geom_point(data=MRsumm, alpha=0.8, col='grey90') + geom_smooth(data=MRsumm, aes(col=Category)) + 
+  geom_smooth(data=ir_dat[ir_dat$BirdID %in% MRsumm$BirdID,], aes(x=DateLubri, y=Ts_max)) +
   my_theme + scale_color_manual(values=my_colors) +
   theme(axis.text.x = element_text(size=20),
         legend.key.height=unit(3,"line"),
@@ -473,8 +449,8 @@ ggplot(NULL, aes(x=DateLubri, y=EE_J)) + facet_wrap(~BirdID, scales="free") +
 ggplot(NULL, aes(x=DateLubri, y=Ts_max)) + facet_wrap(~BirdID, scales="free") +
   scale_y_continuous(name = "Max Ts",sec.axis=sec_axis(trans=~.*2,name='MR (Watts*1000)'))+
   geom_smooth(data=ir_dat, aes(x=DateLubri, y=Ts_max)) +
-  geom_point(data=Tempsumm, alpha=0.8, col='grey90', aes(y=EE_J*500)) + 
-  geom_smooth(data=Tempsumm, aes(col=Category, y=EE_J*500)) +
+  geom_point(data=MRsumm, alpha=0.8, col='grey90', aes(y=EE_J*500)) + 
+  geom_smooth(data=MRsumm, aes(col=Category, y=EE_J*500)) +
   my_theme + colScale +
   theme(axis.text.x = element_text(size=20),
         legend.key.height=unit(3,"line"),
@@ -490,8 +466,8 @@ ggplot(NULL, aes(x=SameDate, y=Ts_max)) + facet_wrap(~BirdID, scales="free") +
   geom_smooth(data=ir_dat[!is.na(ir_dat$Ts_max),], aes(col=Category)) +
   geom_point(data=ir_dat[!is.na(ir_dat$Ts_max),], col="black", size=0.5) +
   geom_line(data=ir_dat[!is.na(ir_dat$Tamb),], aes(SameDate, y=Tamb), linetype="dotted", col="gray") +
-  geom_point(data=Tempsumm_1min, alpha=0.8, col='grey90', aes(y=EE_J_min*600)) + 
-  geom_smooth(data=Tempsumm_1min, aes(col=Category, y=EE_J_min*600)) +
+  geom_point(data=MRsumm_1min, alpha=0.8, col='grey90', aes(y=EE_J_min*600)) + 
+  geom_smooth(data=MRsumm_1min, aes(col=Category, y=EE_J_min*600)) +
   my_theme + scale_color_manual(values=my_colors) +
   theme(axis.text = element_text(size=10),
         legend.key.height=unit(3,"line"),
@@ -501,7 +477,7 @@ ggplot(NULL, aes(x=SameDate, y=Ts_max)) + facet_wrap(~BirdID, scales="free") +
 
 
 ### ALL THE BIRDS, minute averages
-ggplot(Tempsumm_sub, aes(x=DateLubri, y=EE_J)) + facet_wrap(~BirdID, scales="free") + 
+ggplot(MRsumm_sub, aes(x=DateLubri, y=EE_J)) + facet_wrap(~BirdID, scales="free") + 
   geom_point(alpha=0.8, col='grey90') + geom_smooth(aes(col=Category)) + 
   my_theme + scale_color_manual(values=my_colors) +
   theme(axis.text.x = element_text(size=20),
@@ -558,10 +534,10 @@ plot_data_list <- function (bird, data, data2) {
          file=paste0("MR_IR_plot_",bird, ".png"), width = 7.26, height = 7.26, units = "in")
 }
 
-ir_sub <- ir_dat[ir_dat$BirdID %in% c(as.character(unique(Tempsumm$BirdID))),]
+ir_sub <- ir_dat[ir_dat$BirdID %in% c(as.character(unique(MRsumm$BirdID))),]
 ir_sub$BirdID <- droplevels(ir_sub$BirdID)
-birds <- unique(Tempsumm[,"BirdID"])
-lapply(X = birds, FUN = plot_data_list, data = ir_sub, data2 = Tempsumm)
+birds <- unique(MRsumm[,"BirdID"])
+lapply(X = birds, FUN = plot_data_list, data = ir_sub, data2 = MRsumm)
 
 ### TO DOO ###
 ## Make subsetted dataset for just an hour before and after transition
@@ -584,7 +560,7 @@ transitionTimeFunc <- function (bird, data, data2) {
   
   all_plot <- ggplot(NULL, aes(x=SameDate, y=Ts_max)) + #facet_wrap(~BirdID) +
     scale_y_continuous(name = SurfTemp_short.lab, limits=c(-0.1,43), sec.axis=sec_axis(trans=~./10,name='MR (W)'))+
-    geom_smooth(data=subdataIR[!is.na(subdataIR$Ts_max),], aes(x=SameDate, y=Ts_max), col='blue',se = F, method="loess") +
+    geom_line(data=subdataIR[!is.na(subdataIR$Ts_max),], aes(x=SameDate, y=Ts_max), col='blue',se = F, method="loess") +
     geom_point(data=subdataIR[!is.na(subdataIR$Ts_max),], aes(x=SameDate, y=Ts_max), col="blue", size=0.5) +
     geom_line(data=subdataIR[!is.na(subdataIR$Tamb),], aes(x=SameDate, y=Tamb), linetype="dotted", col="blue", alpha=0.8) +
     geom_point(data=subdataMR, alpha=0.8, col='grey90', aes(x=SameDate, y=EE_J_sec*100)) + 
@@ -607,12 +583,12 @@ transitionTimeFunc <- function (bird, data, data2) {
          file=paste0("TransitionTime_",bird, ".tiff"), width = 7.26, height = 5, units = "in")
 }
 
-ir_sub <- ir_dat[ir_dat$BirdID %in% c(as.character(unique(Tempsumm$BirdID))),]
+ir_sub <- ir_dat[ir_dat$BirdID %in% c(as.character(unique(MRsumm$BirdID))),]
 ir_sub$BirdID <- droplevels(ir_sub$BirdID)
 ir_sub <- ir_sub[!is.na(ir_sub$TransitionTime),]
-Tempsumm_sub <- Tempsumm_1sec[!is.na(Tempsumm_1sec$TransitionTime),]
+MRsumm_sub <- MRsumm_1sec[!is.na(MRsumm_1sec$TransitionTime),]
 birds <- unique(ir_sub[,"BirdID"])
-lapply(X = birds, FUN = transitionTimeFunc, data = ir_sub, data2 = Tempsumm_sub)
+lapply(X = birds, FUN = transitionTimeFunc, data = ir_sub, data2 = MRsumm_sub)
 
 onebird <- "CAAN02"
 subIR <- subset(ir_dat,ir_dat$BirdID == onebird)
@@ -620,7 +596,7 @@ StartTime <- unique(subIR$TransitionTime) - 60*60
 EndTime <- unique(subIR$TransitionTime) + 60*60
 subIR <- subIR[subIR$SameDate >=StartTime & subIR$SameDate <= EndTime,]
 
-subMR <- subset(Tempsumm_1sec,Tempsumm_1sec$BirdID == onebird)
+subMR <- subset(MRsumm_1sec,MRsumm_1sec$BirdID == onebird)
 subMR <- subMR[subMR$SameDate >=StartTime & subMR$SameDate <= EndTime,]
 
 categ_col <- NA
@@ -636,7 +612,7 @@ ggplot(NULL, aes(x=SameDate, y=EE_J_sec)) + #facet_wrap(~BirdID) +
   scale_y_continuous(name = 'MR (W)', sec.axis=sec_axis(trans=~.*100,name=SurfTemp_short.lab))+
   geom_point(data=subMR, alpha=0.8, col='grey90', aes(x=SameDate, y=EE_J_sec)) + 
   geom_line(data=subMR, aes(x=SameDate, y=EE_J_sec, col=Category)) +
-  geom_smooth(data=subIR[!is.na(subIR$Ts_max),], aes(x=SameDate, y=Ts_max/100), col='blue',se = F) +
+  geom_smooth(data=subIR[!is.na(subIR$Ts_max),], aes(x=SameDate, y=Ts_max/100), col='blue',se =F) +
   geom_point(data=subIR[!is.na(subIR$Ts_max),], aes(x=SameDate, y=Ts_max/100), col="blue", size=0.5) +
   geom_line(data=subIR[!is.na(subIR$Tamb),], aes(x=SameDate, y=Tamb/100), linetype="dotted", col="blue", alpha=0.8) +
   my_theme2 + colScale +
@@ -695,10 +671,10 @@ ggplot(NULL, aes(x=SameDate, y=EE_J_sec)) + #facet_wrap(~BirdID) +
 #          file=paste0("1minMR_IR_plot_",bird, ".png"), width = 7.26, height = 7.26, units = "in")
 # }
 # 
-# ir_sub <- ir_dat[ir_dat$BirdID %in% c(as.character(unique(Tempsumm_1min$BirdID))),]
+# ir_sub <- ir_dat[ir_dat$BirdID %in% c(as.character(unique(MRsumm_1min$BirdID))),]
 # ir_sub$BirdID <- droplevels(ir_sub$BirdID)
-# birds <- unique(Tempsumm_1min[,"BirdID"])
-# lapply(X = birds, FUN = plot_data_list, data = ir_sub, data2 = Tempsumm_1min)
+# birds <- unique(MRsumm_1min[,"BirdID"])
+# lapply(X = birds, FUN = plot_data_list, data = ir_sub, data2 = MRsumm_1min)
 
 
 ## Trying to put MR and IR on same plot for all birds
@@ -716,10 +692,14 @@ plot_data_list <- function (bird, data, data2) {
     categ_col <- "#9ed93aff"
   }
   all_plot <- ggplot(NULL, aes(x=SameDate, y=Ts_max)) + #facet_wrap(~BirdID) +
-    scale_y_continuous(name = SurfTemp_short.lab,limits = c(-1,43), sec.axis=sec_axis(trans=~./5,name='MR (J/min)'))+
-    geom_smooth(data=subdataIR[!is.na(subdataIR$Ts_max),], aes(x=SameDate, y=Ts_max), col='blue',se = F) +
-    geom_point(data=subdataIR[!is.na(subdataIR$Ts_max),], aes(x=SameDate, y=Ts_max), col="blue", size=0.5) +
-    geom_line(data=subdataIR[!is.na(subdataIR$Tamb),], aes(SameDate, y=Tamb), linetype="dotted", col="blue", alpha=0.8) +
+    scale_y_continuous(name = SurfTemp_short.lab,limits = c(-1,43), 
+                       sec.axis=sec_axis(trans=~.*1,name='MR (J/min)'))+
+    geom_line(data=subdataIR[!is.na(subdataIR$Ts_max),], 
+              aes(x=SameDate, y=Ts_max), col='blue') + #,se = F
+    geom_point(data=subdataIR[!is.na(subdataIR$Ts_max),], 
+               aes(x=SameDate, y=Ts_max), col="blue", size=0.5) +
+    geom_line(data=subdataIR[!is.na(subdataIR$Tamb),], 
+              aes(SameDate, y=Tamb), linetype="dotted", col="blue", alpha=0.8) +
     #geom_point(data=subdataMR, alpha=0.8, col='grey90', aes(y=EE_J_min)) + 
     geom_line(data=subdataMR, aes(col=Category, y=EE_J_min)) +
     my_theme2 + colScale +
@@ -741,14 +721,87 @@ plot_data_list <- function (bird, data, data2) {
          file=paste0("Combined_MR_IR_plot_",bird, ".tiff"), width = 7.26, height = 5, units = "in")
 }
 
-ir_sub <- ir_dat[ir_dat$BirdID %in% c(as.character(unique(Tempsumm_1min$BirdID))),]
+ir_sub <- ir_dat[ir_dat$BirdID %in% c(as.character(unique(MRsumm_1min$BirdID))),]
 ir_sub$BirdID <- droplevels(ir_sub$BirdID)
-birds <- unique(Tempsumm_1min[,"BirdID"])
-lapply(X = birds, FUN = plot_data_list, data = ir_sub, data2 = Tempsumm_1min)
+birds <- unique(MRsumm_1min[,"BirdID"])
+lapply(X = birds, FUN = plot_data_list, data = ir_sub, data2 = MRsumm_1min)
+
+
+
+## Just MR
+## Trying to put MR and IR on same plot for all birds
+plot_data_list <- function (bird, data, data2) {
+  subdataMR <- subset(data,data$BirdID == bird)
+  subdataIR <- subset(data2,data2$BirdID == bird)
+  #minTime <- min(subdataMR$SameDate)
+  #maxTime <- max(subdataMR$SameDate)
+  categ_col <- NA
+  if(unique(subdataMR$Category)=="Normothermic") {
+    categ_col <- "#23988aff"
+  } else if (unique(subdataMR$Category)=="Transition") {
+    categ_col <- "#F38BA8"
+  } else if (unique(subdataMR$Category)=="DeepTorpor") {
+    categ_col <- "#9ed93aff"
+  }
+  all_plot <- ggplot(NULL, aes(x=SameDate, y=EE_J_min)) + #facet_wrap(~BirdID) +
+    geom_point(data=subdataMR, alpha=0.8, col='grey90', aes(y=EE_J_min)) + 
+    geom_line(data=subdataMR, aes(col=Category, y=EE_J_min)) +
+    my_theme2 + colScale +
+    geom_vline(xintercept = unique(subdataIR$TransitionTime), col="grey") +
+    theme(legend.position = "none",axis.text = element_text(size=15),
+          strip.text = element_text(size = 15), plot.title = element_text(hjust=0.5)) +
+          ylab("Energy Expenditure (J/min)") +
+    xlab("Time of night") + ggtitle(bird)
+  
+  ## Stack all three
+  #grid.arrange(Ts_plot, mr_plot, amb_plot, nrow=3)
+  ggsave(all_plot,
+         file=paste0("MR_plot_",bird, ".tiff"), width = 7.26, height = 5, units = "in")
+}
+
+birds <- unique(MRsumm_1min[,"BirdID"])
+lapply(X = birds, FUN = plot_data_list, data = MRsumm_1min, data2 = ir_sub)
+
+
+
+### Just IR
+## Just MR
+## Trying to put MR and IR on same plot for all birds
+plot_data_list <- function (bird, data, data2) {
+  subdataMR <- subset(data,data$BirdID == bird)
+  subdataIR <- subset(data2,data2$BirdID == bird)
+  #minTime <- min(subdataMR$SameDate)
+  #maxTime <- max(subdataMR$SameDate)
+  categ_col <- NA
+  if(unique(subdataMR$Category)=="Normothermic") {
+    categ_col <- "#23988aff"
+  } else if (unique(subdataMR$Category)=="Transition") {
+    categ_col <- "#F38BA8"
+  } else if (unique(subdataMR$Category)=="DeepTorpor") {
+    categ_col <- "#9ed93aff"
+  }
+  all_plot <- ggplot(NULL, aes(x=SameDate, y=Ts_max)) + #facet_wrap(~BirdID) +
+    geom_point(data=subdataIR, aes(col=Category), alpha=0.8, col='grey90') + 
+    geom_line(data=subdataIR, aes(col=Category)) +
+    my_theme2 + colScale +
+    geom_vline(xintercept = unique(subdataIR$TransitionTime), col="grey") +
+    theme(legend.position = "none",axis.text = element_text(size=15),
+          strip.text = element_text(size = 15), plot.title = element_text(hjust=0.5)) +
+    ylab("Energy Expenditure (J/min)") +
+    xlab("Time of night") + ggtitle(bird)
+  
+  ## Stack all three
+  #grid.arrange(Ts_plot, mr_plot, amb_plot, nrow=3)
+  ggsave(all_plot,
+         file=paste0("IR_plot_",bird, ".tiff"), width = 7.26, height = 5, units = "in")
+}
+
+birds <- unique(MRsumm_1min[,"BirdID"])
+lapply(X = birds, FUN = plot_data_list, data = MRsumm_1min, data2 = ir_sub)
 
 
 #  # Save plots to tiff. Makes a separate file for each plot.
-# for (i in unique(Tempsumm$BirdID)) {
+# for (i in unique(MRsumm$BirdID)) {
 #   file_name <- paste0("MR_IR_plot_", i, ".tiff")
 #   tiff(file_name)
 #   print(myplots[[i]])
@@ -764,7 +817,7 @@ lapply(X = birds, FUN = plot_data_list, data = ir_sub, data2 = Tempsumm_1min)
 
 onebird <- "CAAN02"
 subIR <- subset(ir_dat,ir_dat$BirdID == onebird)
-subMR <- subset(Tempsumm_1min,Tempsumm_1min$BirdID == onebird)
+subMR <- subset(MRsumm_1min,MRsumm_1min$BirdID == onebird)
 miniTime <- min(c(subIR$SameDate, subMR$SameDate))
 maxiTime <- max(c(subIR$SameDate, subMR$SameDate))
 categ_col <- NA
@@ -797,7 +850,7 @@ ggplot(NULL, aes(x=SameDate, y=Ts_max)) + #facet_wrap(~BirdID) +
   xlab("Time of night") + ggtitle(onebird)
 
 ### Just MR
-ggplot(Tempsumm_1sec[Tempsumm_1sec$BirdID==onebird,], aes(x=DateLubri, y=EE_J)) +
+ggplot(MRsumm_1sec[MRsumm_1sec$BirdID==onebird,], aes(x=DateLubri, y=EE_J)) +
   geom_point(alpha=0.8, col='grey90') + 
   geom_line(aes(col=Category)) +
   my_theme2 + colScale +
@@ -852,7 +905,7 @@ ggplot(caan02, aes(x=DateTime, y=EE_J)) +
   ylab("Energy expended (J) per second")
 
 # ## Just CAAN04
-# ggplot(Tempsumm[Tempsumm$BirdID=="CAAN04",], aes(x=DateLubri, y=EE_J)) + #facet_wrap(~BirdID, scales="free") + 
+# ggplot(MRsumm[MRsumm$BirdID=="CAAN04",], aes(x=DateLubri, y=EE_J)) + #facet_wrap(~BirdID, scales="free") + 
 #   geom_point(alpha=0.8, col='grey90') + geom_smooth(aes(col=Category)) + 
 #   my_theme + 
 #   scale_color_manual(values=my_colors) +
@@ -874,7 +927,7 @@ ggplot(caan02, aes(x=DateTime, y=EE_J)) +
 #         legend.position = "none") + xlab("Time of night") + ylab(SurfTemp.lab)
 # 
 # ## Just MR, narrow y-axis
-# caan08_mr_plot <- ggplot(Tempsumm[Tempsumm$BirdID=="CAAN08",], aes(x=DateLubri, y=EE_J*10)) +
+# caan08_mr_plot <- ggplot(MRsumm[MRsumm$BirdID=="CAAN08",], aes(x=DateLubri, y=EE_J*10)) +
 #   geom_point(alpha=0.8, col='grey90') + geom_smooth() + 
 #   my_theme + #colScale + 
 #   theme(axis.text.x = element_text(size=20),
