@@ -3,11 +3,6 @@
 ## Data collected by Emily Blackwell, Anusha Shankar
 ## Collaboration with Don Powers
 
-## Reading in packages
-library(here)
-library(ggplot2)
-library(dplyr) ## To sum EE over one minute intervals, and for IR for renaming columns etc.
-
 ## For just MR data
 library(caTools)
 library(png)
@@ -22,13 +17,21 @@ library(reshape2)
 library(gridExtra)
 library(plyr)
 
+## Packages for both
+library(ggplot2)
+library(dplyr) ## To sum EE over one minute intervals, and for IR for renaming columns etc.
+library(here)
+library(nlme) ## for gls model to compare them with lmer, and to account for autocorrelation
+library(emmeans)
+
+
 
 ## Read in files
-#MRsumm_1min <- read.csv(here::here("MR_summary_1min_EE_Tc.csv"))
+MRsumm_1min <- read.csv(here::here("MR_summary_1min_EE_Tc.csv"))
+MRsumm <- read.csv(here::here("MR_summary_EE_Tc.csv"))
 #caan02 <- read.csv(here("MR", "CAAN02_0623_WholeNight_Analyzed.csv"))
 paths <- dir(here::here("MR", "Multiple"), pattern = ".csv$")
 names(paths) <- basename(paths)
-
 
 
 ## For IR
@@ -60,7 +63,7 @@ SurfTemp.lab <- expression(atop(paste("Maximum Surface Temperature (", degree,"C
 # names(my_colors) <- levels(c("Normothermic", "Transition", "DeepTorpor"))
 # colScale <- scale_colour_manual(name = "Category", values = my_colors)
 
-#### Ignore this section if reading in MRsumm_1min data frame ####
+#### Ignore this section if reading in MRsumm_1min data frame and/or MR_summ ####
 
 ThermFiles <- lapply(here::here("MR", "Multiple", paths), read.csv, header=F)
 
@@ -95,7 +98,7 @@ ThermDat$Category <- factor(ThermDat$Category, levels=c("Normothermic", "Transit
 
 
 # ##Fixed color scale for categories
-my_colors <- c("#23988aff", "#F38BA8", "#9ed93aff") #"#440558ff"
+my_colors <- c("#23988aff", "#440558ff", "#9ed93aff") #"#F38BA8"
 names(my_colors) <- levels(ThermDat$Category)
 colScale <- scale_colour_manual(name = "Category", values = my_colors)
 
@@ -139,6 +142,8 @@ MRsumm$SameDate <- as.POSIXct(paste(paste("2021", "7", "23", sep = "-"),
 MRsumm$SameDate[MRsumm$Hour<19] <- MRsumm$SameDate[MRsumm$Hour<19]+86400
 MRsumm$SameDate <- lubridate::ymd_hms(MRsumm$SameDate, tz = "America/Los_Angeles")
 
+
+write.csv(x = MRsumm, file = here::here("MR_summary_EE_Tc.csv"))
 
 ## Summarize by second
 MRsumm_1sec <- as.data.frame(MRsumm %>%
@@ -248,16 +253,16 @@ ir_dat$SameDate[ir_dat$Hour<19] <- ir_dat$SameDate[ir_dat$Hour<19]+86400
 ir_dat$SameDate <- lubridate::ymd_hms(ir_dat$SameDate, tz = "America/Los_Angeles")
 
 ## Fill in Categories
-# ir_dat$Category <- NA
+#ir_dat$Category <- NA
 ir_dat$BirdID <- as.factor(ir_dat$BirdID)
 ir_dat <- merge(ir_dat, categories, "BirdID")
 
 ir_dat$Ts_max <- as.numeric(ir_dat$Ts_max)
 ir_dat$Category <- factor(ir_dat$Category, levels=c("Normothermic", "Transition", "DeepTorpor"))
 
-ir_dat$TransiHour<- str_pad(substr(ir_dat$Time_transitionStart, 1, 2), width=2, side="left", pad="0")
+ir_dat$TransiHour<- str_pad(substr(ir_dat$Time_TransitionStart, 1, 2), width=2, side="left", pad="0")
 ir_dat$TransiHour[ir_dat$TransiHour==24] <- "00"
-ir_dat$TransiMin<- str_pad(substr(ir_dat$Time_transitionStart, 3, 4), width=2, side="left", pad="0")
+ir_dat$TransiMin<- str_pad(substr(ir_dat$Time_TransitionStart, 3, 4), width=2, side="left", pad="0")
 ir_dat$TransitionTime <- as.POSIXct(paste(paste("2021", "7", "23", sep = "-"), 
                                           paste(ir_dat$TransiHour, 
                                                 ir_dat$TransiMin, "00", sep = ":"), sep=" "),
@@ -282,12 +287,33 @@ agg_ir_mr <- merge(IR_ToMerge, MR_ToMerge_1min,  by=c("DateLubri", "BirdID"))
 m.agg <- merge(agg_ir_mr, categories)
 m.agg$Category <- factor(m.agg$Category, levels=c("Normothermic", "Transition", "DeepTorpor"))
 
+m.agg$TransiHour<- str_pad(substr(m.agg$Time_TransitionStart, 1, 2), width=2, side="left", pad="0")
+m.agg$TransiHour[m.agg$TransiHour==24] <- "00"
+m.agg$TransiMin<- str_pad(substr(m.agg$Time_TransitionStart, 3, 4), width=2, side="left", pad="0")
+m.agg$TransitionTime <- as.POSIXct(paste(paste("2021", "7", "23", sep = "-"), 
+                                          paste(m.agg$TransiHour, 
+                                                m.agg$TransiMin, "00", sep = ":"), sep=" "),
+                                    format='%Y-%m-%d %H:%M', tz="America/Los_Angeles")
+m.agg$TransitionTime[!is.na(m.agg$TransiHour) & m.agg$TransiHour<19] <- m.agg$TransitionTime[!is.na(m.agg$TransiHour) & m.agg$TransiHour<19]+86400
+
+
+m.agg$TorporHour<- str_pad(m.agg$Time_DeepTorporStart, width=4, side="left", pad="0")
+m.agg$TorporHour<- substr(m.agg$TorporHour, 1, 2)
+m.agg$TorporHour[m.agg$TorporHour==24] <- "00"
+m.agg$TorporMin<- str_pad(substr(m.agg$Time_DeepTorporStart, 3, 4), width=2, side="left", pad="0")
+m.agg$DeepTorporTime <- as.POSIXct(paste(paste("2021", "7", "23", sep = "-"), 
+                                         paste(m.agg$TorporHour, 
+                                               m.agg$TorporMin, "00", sep = ":"), sep=" "),
+                                   format='%Y-%m-%d %H:%M', tz="America/Los_Angeles")
+m.agg$DeepTorporTime[!is.na(m.agg$TorporHour) & m.agg$TorporHour<19] <- m.agg$DeepTorporTime[!is.na(m.agg$TorporHour) & m.agg$TorporHour<19]+86400
+
 ggplot(m.agg, aes(EE_J, Ts_max)) + geom_point(aes(col=Category)) + my_theme + facet_wrap(.~BirdID)  +
   colScale
 
 
-ggplot(m.agg, aes(EE_J, Ts_max)) + geom_point(aes(col=Category), size=2) + my_theme + #facet_wrap(.~BirdID)  +
-  colScale
+ggplot(m.agg, aes(EE_J, Ts_max)) + geom_point(aes(col=Category, alpha=Category), size=3) + my_theme + #facet_wrap(.~BirdID)  +
+  colScale + xlab("Energy expenditure (J/min)") + ylab(SurfTemp.lab) + scale_alpha_manual(values = c(0.8,0.6,0.8)) +
+  stat_smooth(aes(col=Category), method = "lm", formula = y ~ x + I(x^2), size = 1)
 
 
 # agg_ir$AmbientTemp_C <- as.numeric(agg_ir$Ta)
@@ -371,6 +397,145 @@ MRsumm_1min$SameDate <- as.POSIXct(MRsumm_1min$SameDate)
 #   mutate(EE_J_min=mean(EE_J))  %>% 
 #   select(interval,EE_J_min) 
 
+m.agg$DateLubri <- lubridate::ymd_hms(m.agg$DateLubri, tz = "America/Los_Angeles")
+m.agg$SameDate <- as.POSIXct(paste(paste("2021", "7", "23", sep = "-"), 
+                                    as_hms(m.agg$DateLubri), sep=" "),
+                              format='%Y-%m-%d %H:%M:%S', tz="America/Los_Angeles")
+m.agg$SameDate[m.agg$SameDate < '2021-07-23 19:00:00'] <- m.agg$SameDate[m.agg$SameDate < '2021-07-23 19:00:00']+86400
+m.agg$SameDate <- lubridate::ymd_hms(m.agg$SameDate, tz = "America/Los_Angeles")
+m.agg$RowCateg <- NA
+agg <- data.frame(matrix(ncol=ncol(m.agg),nrow=0))
+colnames(agg) <- colnames(m.agg)
+### Assigning row-specific categories
+RowCategFunc <- function (bird, data) {
+  subdata <- subset(data,data$BirdID == bird)
+  TransiTime <- unique(subdata$TransitionTime)
+  TorporTime <- unique(subdata$DeepTorporTime)
+  
+  if(is.na(TransiTime) & is.na(TorporTime)) {
+    subdata$RowCateg <- "Normothermic"
+  } else if(!is.na(TransiTime) & is.na(TorporTime)) {
+    subdata$RowCateg[subdata$SameDate < TransiTime] <- "Normothermic"
+    subdata$RowCateg[subdata$SameDate >= TransiTime] <- "Transition"
+  } else {
+    subdata$RowCateg[subdata$SameDate < TransiTime] <- "Normothermic"
+    subdata$RowCateg[subdata$SameDate >= TransiTime & subdata$SameDate < TorporTime] <- "Transition"
+    subdata$RowCateg[subdata$SameDate >= TorporTime] <- "DeepTorpor"
+  }
+  rbind(agg, subdata)
+}
+
+birds <- unique(m.agg[,"BirdID"])
+aggd <- lapply(X = birds, FUN = RowCategFunc, data = m.agg)
+AllDatCateg <- do.call(rbind.data.frame, aggd)
+
+m.agg %>% 
+  group_by(BirdID) %>% 
+  dplyr::summarise(EE_kJ_Night = sum(EE_J)/1000)
+
+## Changing "RowCateg" to "Category" and "Category" to "CategBird"
+AllDatCateg <- dplyr::rename(AllDatCateg, CategBird = Category, Category = RowCateg)
+AllDatCateg$Category <- factor(AllDatCateg$Category, levels=c("Normothermic", "Transition", "DeepTorpor"))
+
+write.csv(x = AllDatCateg, file = here::here("MR_IR_Merged_EEJpermin.csv"))
+
+
+ggplot(AllDatCateg, aes(EE_J, Ts_max)) + geom_point(aes(col=Category)) + my_theme + facet_wrap(.~BirdID)  +
+  colScale
+
+## No geom_smooth
+ggplot(AllDatCateg, aes(EE_J, Ts_max)) + geom_point(aes(col=Category, alpha=Category), size=3) +
+  my_theme + #facet_wrap(.~BirdID)  +
+  colScale + xlab("Energy expenditure (J/min)") + 
+  ylab(SurfTemp.lab) + scale_alpha_manual(values = c(0.6,0.6,0.8))
+
+##With geom_smooth, all lm
+ggplot(AllDatCateg, aes(EE_J, Ts_max)) + geom_point(aes(col=Category, alpha=Category), size=3) +
+  my_theme + #facet_wrap(.~BirdID)  +
+  colScale + xlab("Energy expenditure (J/min)") + 
+  ylab(SurfTemp.lab) + scale_alpha_manual(values = c(0.6,0.6,0.8)) + 
+  stat_smooth(aes(col=Category), method = "lm")
+
+## With geom_smooth quadratic
+ggplot(AllDatCateg, aes(EE_J, Ts_max)) + geom_point(aes(col=Category, alpha=Category), size=3) +
+  my_theme + #facet_wrap(.~BirdID)  +
+  colScale + xlab("Energy expenditure (J/min)") + 
+  ylab(SurfTemp.lab) + scale_alpha_manual(values = c(0.6,0.6,0.8)) + 
+  stat_smooth(aes(col=Category), method = "lm", formula = y ~ x + I(x^2), size = 1)
+
+## With geom_smooth, some quadratic and some lm
+ggplot(AllDatCateg, aes(EE_J, Ts_max)) + geom_point(aes(col=Category, alpha=Category), size=3.5) +
+  my_theme + #facet_wrap(.~BirdID)  +
+  colScale + xlab("Energy expenditure (J/min)") + 
+  ylab(SurfTemp.lab) + scale_alpha_manual(values = c(0.6,0.6,0.8)) + 
+  stat_smooth(data=AllDatCateg[AllDatCateg$Category %in% c("Normothermic", "DeepTorpor"),], 
+              aes(col=Category), method = "lm", alpha=0.2, size=1) +
+  stat_smooth(data=AllDatCateg[AllDatCateg$Category=="Transition",], 
+              aes(col=Category), method = "lm", formula = y ~ x + I(x^2), alpha=0.2, size=1) +
+  theme(legend.key.height = unit(3,"line"))
+
+ggplot(AllDatCateg, aes(EE_J, Ts_max)) + geom_point(aes(col=RowCateg, alpha=RowCateg), size=3) + 
+  my_theme + #facet_wrap(.~BirdID)  +
+  colScale + xlab("Energy expenditure (J/min)") + 
+  ylab(SurfTemp.lab) + scale_alpha_manual(values = c(0.8,0.6,0.8)) 
+
+
+mod_test_ID <- nlme::lme(data=na.exclude(AllDatCateg), fixed=Ts_max ~ 
+                       EE_J + 
+                       Category,
+                       random= ~1|BirdID/Category, 
+                     correlation=corAR1(form=~1|BirdID/Category))
+
+mod_test <- nlme::lme(data=na.exclude(AllDatCateg), fixed=Ts_max ~ 
+                        EE_J + 
+                        Category,
+                      random= ~1|Category)
+
+acf(resid(mod_test), plot=F)
+summary(mod_test, correlation=T)
+coef(mod_test)
+intervals(mod_test)
+acf(resid(mod_test))
+em <- emmeans(mod_test,  ~Category)
+em
+plot(residuals(mod_test),type="b")
+abline(h=0,lty=3)
+summary(mod_test)$tTable
+
+
+mod_test <- glm(data=AllDatCateg, formula = Ts_max ~ EE_J+Category)
+
+acf(resid(mod_test), plot=F)
+summary(mod_test)
+coef(mod_test)
+intervals(mod_test)
+acf(resid(mod_test))
+em <- emmeans(mod_test,  ~Category)
+em
+plot(residuals(mod_test),type="b")
+abline(h=0,lty=3)
+summary(mod_test)$tTable
+
+
+## Trying lm's with plyr -  3 separate lm's, one per category
+# Break up data frame by Category, then fit the specified model to each piece and
+# return a list
+models <- dlply(AllDatCateg, "Category", function(df) 
+  lm(Ts_max ~ EE_J + EE_J2, data = df))
+
+
+AllDatCateg$EE_J2 <- 0
+AllDatCateg$EE_J2[AllDatCateg$Category=="Transition"] <- (AllDatCateg$EE_J[AllDatCateg$Category=="Transition"])^2
+
+lm(Ts_max ~ EE_J + EE_J2, data = AllDatCateg[AllDatCateg$Category=="Transition",])
+
+# Apply coef to each model and return a data frame
+ldply(models, coef)
+
+# Print the summary of each model
+l_ply(models, summary, .print = TRUE)
+
+tab_model(models)
 
 ## Plot
 ggplot(EE_J_toPlot, aes(x=SampleNo, y=EE_J_per_sec)) +

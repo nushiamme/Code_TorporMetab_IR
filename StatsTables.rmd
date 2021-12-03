@@ -1,0 +1,46 @@
+---
+title: "Torpor MR and IR Tables"
+author: "Anusha Shankar"
+date: "12/1/2021"
+output: word_document
+---
+
+
+```{r setup, echo=T}
+library(here)
+library(plyr) ## for gls model to compare them with lmer, account for autocorrelation
+library(emmeans)
+library(sjPlot) ## To print results
+library(sjmisc) ## To print results
+library(sjlabelled) ## To print results
+#library(MASS) ## To check the distribution of the data and run glm.nb
+#getwd()
+here <- here::here
+AllDatCateg <- read.csv(here("..", "MR_IR_Merged_EEJpermin.csv"))
+
+AllDatCateg$Category <- factor(AllDatCateg$Category, levels=c("Normothermic", "Transition", "DeepTorpor"))
+
+## Adding a squared term just for the transition category
+AllDatCateg$EE_J2 <- 0
+AllDatCateg$EE_J2[AllDatCateg$Category=="Transition"] <- (AllDatCateg$EE_J[AllDatCateg$Category=="Transition"])^2
+
+
+## Trying lm's with plyr
+# Break up data frame by Category, then fit the specified model to each piece and
+# return a list
+models <- dlply(AllDatCateg, "Category", function(df) 
+  lm(Ts_max ~ EE_J + EE_J2, data = df))
+
+# Apply coef to each model and return a data frame
+mod_coef <- ldply(models, coef)
+
+# Print the summary of each model
+mod_print <- l_ply(models, summary, .print = TRUE)
+
+# em <- emmeans(mod_cor,  ~Species:Category)
+# acf(resid(mod_cor))
+knitr::kable(mod_coef, digits=2)
+tab_model(models, digits=2)
+#knitr::kable(intervals(mod_cor)$fixed, digits=2)
+#knitr::kable(summary(mod_cor)$tTable,  digits = c(2,2,0,2,35))
+```
