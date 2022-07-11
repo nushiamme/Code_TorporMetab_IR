@@ -14,11 +14,11 @@ library(plyr)
 
 #here <- here::here()
 ir_dat <- read.csv(here::here("IR", "IR_data_2022.csv"))
-Temps <- read.csv(here::here("IR", "Thermocouple_Temps.csv"))
+#Temps <- read.csv(here::here("IR", "Thermocouple_Temps.csv"))
 
 ## General functions
 ## Generic plot theme
-my_theme <- theme_classic(base_size = 30) + 
+my_theme <- theme_classic(base_size = 20) + 
   theme(panel.border = element_rect(colour = "black", fill=NA))
 
 my_theme_blank <- theme_classic(base_size = 30) + 
@@ -84,21 +84,21 @@ ir_dat$Tc_thermocouple <- as.numeric(ir_dat$Tc_thermocouple)
 ## 12 - Transition
 
 ir_dat$BirdID <- as.factor(ir_dat$BirdID)
-ir_dat$Category <- NA
-ir_dat$Category[ir_dat$BirdID==levels(ir_dat$BirdID)[1]] <- "Normothermic"
-ir_dat$Category[ir_dat$BirdID==levels(ir_dat$BirdID)[2]] <- "DeepTorpor"
-ir_dat$Category[ir_dat$BirdID==levels(ir_dat$BirdID)[3]] <- "DeepTorpor"
-ir_dat$Category[ir_dat$BirdID==levels(ir_dat$BirdID)[4]] <- "DeepTorpor"
-ir_dat$Category[ir_dat$BirdID==levels(ir_dat$BirdID)[5]] <- "DeepTorpor"
-ir_dat$Category[ir_dat$BirdID==levels(ir_dat$BirdID)[6]] <- "Normothermic"
-ir_dat$Category[ir_dat$BirdID==levels(ir_dat$BirdID)[7]] <- "Transition"
-ir_dat$Category[ir_dat$BirdID==levels(ir_dat$BirdID)[8]] <- "Normothermic"
-ir_dat$Category[ir_dat$BirdID==levels(ir_dat$BirdID)[9]] <- "Normothermic"
-ir_dat$Category[ir_dat$BirdID==levels(ir_dat$BirdID)[10]] <- "Normothermic"
-ir_dat$Category[ir_dat$BirdID==levels(ir_dat$BirdID)[11]] <- "Transition"
-ir_dat$Category[ir_dat$BirdID==levels(ir_dat$BirdID)[12]] <- "Transition"
+# ir_dat$Category <- NA
+# ir_dat$Category[ir_dat$BirdID==levels(ir_dat$BirdID)[1]] <- "Normothermic"
+# ir_dat$Category[ir_dat$BirdID==levels(ir_dat$BirdID)[2]] <- "DeepTorpor"
+# ir_dat$Category[ir_dat$BirdID==levels(ir_dat$BirdID)[3]] <- "DeepTorpor"
+# ir_dat$Category[ir_dat$BirdID==levels(ir_dat$BirdID)[4]] <- "DeepTorpor"
+# ir_dat$Category[ir_dat$BirdID==levels(ir_dat$BirdID)[5]] <- "DeepTorpor"
+# ir_dat$Category[ir_dat$BirdID==levels(ir_dat$BirdID)[6]] <- "Normothermic"
+# ir_dat$Category[ir_dat$BirdID==levels(ir_dat$BirdID)[7]] <- "Transition"
+# ir_dat$Category[ir_dat$BirdID==levels(ir_dat$BirdID)[8]] <- "Normothermic"
+# ir_dat$Category[ir_dat$BirdID==levels(ir_dat$BirdID)[9]] <- "Normothermic"
+# ir_dat$Category[ir_dat$BirdID==levels(ir_dat$BirdID)[10]] <- "Normothermic"
+# ir_dat$Category[ir_dat$BirdID==levels(ir_dat$BirdID)[11]] <- "Transition"
+# ir_dat$Category[ir_dat$BirdID==levels(ir_dat$BirdID)[12]] <- "Transition"
 
-ir_dat$Category <- factor(ir_dat$Category, levels=c("Normothermic", "Transition", "DeepTorpor"))
+# ir_dat$Category <- factor(ir_dat$Category, levels=c("Normothermic", "Transition", "DeepTorpor"))
 
 ## Add Tc and Ta column from thermocouple data into ir_dat
 Temps$DateLubri <- lubridate::ymd_hms(Temps$DateLubri)
@@ -117,9 +117,10 @@ ggplot(ir_dat, aes(DateFormat, Ts_max)) + geom_point() + #geom_point(aes(col=Tam
   my_theme + facet_wrap(~BirdID, scales = "free_x")
 
 #### Plots ####
-bird1 <- ggplot(ir_dat[ir_dat$BirdID=="CAAN01",], aes(DateFormat, Ts_max)) + 
+bird1 <- ggplot(ir_dat[ir_dat$BirdID=="BCHU02",], aes(DateFormat, Ts_max)) + 
   geom_point(aes(col=BirdID)) + my_theme +
-  facet_grid(BirdID~., scales = "free") + ylim(0,40) +
+  geom_line(aes(col=BirdID)) +
+  #facet_grid(BirdID~., scales = "free") + ylim(0,40) +
   theme(axis.text.x = element_text(angle=90, size = 10), axis.title.x = element_blank(),
         legend.position = "none")
 
@@ -174,6 +175,7 @@ ggplot(ir_dat, aes(DateFormat, Ts_max)) +
   ylim(0,40) +
   theme(axis.text.x = element_text(size = 20),
         legend.position = "none") + xlab("Time of night") + ylab(SurfTemp.lab)
+
 
 ## Standardize axes by using the same date for all individuals
 ggplot(agg_ir, aes(SameDate, Ts_max)) + 
