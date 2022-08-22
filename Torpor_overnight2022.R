@@ -91,8 +91,9 @@ for (i in 1:length(ThermFiles)) {
 for (i in 1:length(ThermFiles)) {
   ThermFiles[[i]]$NewTime <- as.POSIXct(NA)
   ThermFiles[[i]]$NewTime[1] <- as.POSIXct(ThermFiles[[i]]$StartDateFormat[1])
-  for (i in 1:nrow(ThermFiles[[i]])) {
-    ThermFiles[[i]]$NewTime[i] <- .25 + ThermFiles[[i]]$NewTime[i-1]
+  ThermFiles[[i]]$NewTime[2] <- .25 + ThermFiles[[i]]$NewTime[1]
+  for (j in 3:nrow(ThermFiles[[i]])) {
+    ThermFiles[[i]]$NewTime[j] <- .25 + ThermFiles[[i]]$NewTime[j-1]
   }
 }
 
@@ -127,11 +128,11 @@ ThermDat <- do.call(rbind.data.frame, ThermFiles)
 #                                      format='%Y-%m-%d %H:%M:%S', tz="America/Los_Angeles")
 # 
 
-ThermDat$NewTime <- as.POSIXct(NA)
-ThermDat$NewTime[1] <- as.POSIXct(ThermDat$StartDateFormat[1])
-for (i in 1:nrow(ThermDat)) {
-  ThermDat$NewTime[i] <- .25 + ThermDat$NewTime[i-1]
-}
+# ThermDat$NewTime <- as.POSIXct(NA)
+# ThermDat$NewTime[1] <- as.POSIXct(ThermDat$StartDateFormat[1])
+# for (i in 1:nrow(ThermDat)) {
+#   ThermDat$NewTime[i] <- .25 + ThermDat$NewTime[i-1]
+# }
 
 
 # ThermDat$NewTime <- as.POSIXct(NA)
@@ -188,15 +189,15 @@ head(MRsumm)
 MRsumm$ChamberTemp_C <- as.numeric(MRsumm$ChamberTemp_C)
 MRsumm$AmbientTemp_C <- as.numeric(MRsumm$AmbientTemp_C)
 
-MRsumm$TransitionTime <- as.POSIXct(paste(paste("2021", "7", "23", sep = "-"), 
-                                          paste(str_pad(substr(MRsumm$Time_transitionStart, 1, 2), width=2, side="left", pad="0"), 
-                                                str_pad(substr(MRsumm$Time_transitionStart, 3, 4), width=2, side="left", pad="0"), "00", sep = ":"), sep=" "),
-                                    format='%Y-%m-%d %H:%M', tz="America/Los_Angeles")
+# #MRsumm$TransitionTime <- as.POSIXct(paste(paste("2021", "7", "23", sep = "-"), 
+#                                           paste(str_pad(substr(MRsumm$Time_transitionStart, 1, 2), width=2, side="left", pad="0"), 
+#                                                 str_pad(substr(MRsumm$Time_transitionStart, 3, 4), width=2, side="left", pad="0"), "00", sep = ":"), sep=" "),
+#                                     format='%Y-%m-%d %H:%M', tz="America/Los_Angeles")
 
 MRsumm$SameDate <- as.POSIXct(paste(paste("2021", "7", "23", sep = "-"), 
                                     as_hms(MRsumm$DateLubri), sep=" "),
                               format='%Y-%m-%d %H:%M:%S', tz="America/Los_Angeles")
-MRsumm$SameDate[MRsumm$Hour<19] <- MRsumm$SameDate[MRsumm$Hour<19]+86400
+MRsumm$SameDate[hour(MRsumm$DateLubri)<19] <- MRsumm$SameDate[hour(MRsumm$DateLubri)<19]+86400
 MRsumm$SameDate <- lubridate::ymd_hms(MRsumm$SameDate, tz = "America/Los_Angeles")
 
 
@@ -226,17 +227,24 @@ MRsumm_1sec$EE_J_sec <- MRsumm_1sec$EE_J*4
 
 
 ## Summarize by minute
-MRsumm_1min_forMerge <- as.data.frame(MRsumm %>%
-                                 select(DateLubri, BirdID, Category, ChamberTemp_C, EE_J) %>%
-                                 group_by(BirdID, Category, Date_min = cut(DateLubri, breaks="1 min")) %>%
-                                 dplyr::summarize(across(c("EE_J", "ChamberTemp_C"), ~ mean(.x, na.rm = TRUE))) %>%
-                                 ungroup())
+# MRsumm_1min_forMerge <- as.data.frame(MRsumm %>%
+#                                  select(DateLubri, BirdID, Category, ChamberTemp_C, EE_J) %>%
+#                                  group_by(BirdID, Category, Date_min = cut(DateLubri, breaks="1 min")) %>%
+#                                  dplyr::summarize(across(c("EE_J", "ChamberTemp_C"), ~ mean(.x, na.rm = TRUE))) %>%
+#                                  ungroup())
 
 EE_1min_forMerge <- as.data.frame(MRsumm %>%
-                select(DateTime, BirdID, Category, EE_J) %>%
-                group_by(BirdID, Category, DateLubri = cut(DateTime, breaks="1 min")) %>%
-                dplyr::summarize(EE_J_min=sum(EE_J)) %>%
-                ungroup())
+                                        select(SameDate, EE_J) %>%
+                                        group_by(SameDate = cut(SameDate, breaks="1 min")) %>%
+                                        dplyr::summarize(EE_J_min = sum(EE_J, na.rm = TRUE)) %>%
+                                        ungroup())
+EE_1min_forMerge <- dplyr::arrange(EE_1min_forMerge, SameDate)
+
+# EE_1min_forMerge <- as.data.frame(MRsumm %>%
+#                 select(DateTime, BirdID, Category, EE_J) %>%
+#                 group_by(BirdID, Category, DateLubri = cut(DateTime, breaks="1 min")) %>%
+#                 dplyr::summarize(EE_J_min=sum(EE_J)) %>%
+#                 ungroup())
 
 Tc_1min <- as.data.frame(MRsumm %>%
                            select(DateTime, BirdID, Category, ChamberTemp_C) %>%
@@ -333,7 +341,7 @@ ir_dat$TransitionTime <- as.POSIXct(paste(paste("2021", "7", "23", sep = "-"),
 # #Temps$DateLubri <- lubridate::ymd_hms(Temps$DateLubri, tz = "America/Los_Angeles")
 ## Average EE for every minute
 MR_ToMerge_1min <- as.data.frame(MRsumm %>%
-  group_by(DateLubri = cut(DateLubri, breaks="1 min"), BirdID) %>%
+  group_by(SameDate_min = cut(SameDate, breaks="1 min"), BirdID) %>%
   dplyr::summarize(EE_J = sum(EE_J)) %>%
   ungroup())
 
@@ -345,31 +353,34 @@ IR_ToMerge <- as.data.frame(rihu07 %>%
 
 agg_ir_mr <- merge(IR_ToMerge, MR_ToMerge_1min,  by=c("DateLubri", "BirdID"))
 agg_ir_mr$BirdID <- as.factor(agg_ir_mr$BirdID)
-m.agg <- merge(agg_ir_mr, categories)
-m.agg$Category <- factor(m.agg$Category, levels=c("Normothermic", "Transition", "DeepTorpor"))
-
-m.agg$TransiHour<- str_pad(substr(m.agg$Time_TransitionStart, 1, 2), width=2, side="left", pad="0")
-m.agg$TransiHour[m.agg$TransiHour==24] <- "00"
-m.agg$TransiMin<- str_pad(substr(m.agg$Time_TransitionStart, 3, 4), width=2, side="left", pad="0")
-m.agg$TransitionTime <- as.POSIXct(paste(paste("2021", "7", "23", sep = "-"), 
-                                          paste(m.agg$TransiHour, 
-                                                m.agg$TransiMin, "00", sep = ":"), sep=" "),
-                                    format='%Y-%m-%d %H:%M', tz="America/Los_Angeles")
-m.agg$TransitionTime[!is.na(m.agg$TransiHour) & m.agg$TransiHour<19] <- m.agg$TransitionTime[!is.na(m.agg$TransiHour) & m.agg$TransiHour<19]+86400
-
-
-m.agg$TorporHour<- str_pad(m.agg$Time_DeepTorporStart, width=4, side="left", pad="0")
-m.agg$TorporHour<- substr(m.agg$TorporHour, 1, 2)
-m.agg$TorporHour[m.agg$TorporHour==24] <- "00"
-m.agg$TorporMin<- str_pad(substr(m.agg$Time_DeepTorporStart, 3, 4), width=2, side="left", pad="0")
-m.agg$DeepTorporTime <- as.POSIXct(paste(paste("2021", "7", "23", sep = "-"), 
-                                         paste(m.agg$TorporHour, 
-                                               m.agg$TorporMin, "00", sep = ":"), sep=" "),
-                                   format='%Y-%m-%d %H:%M', tz="America/Los_Angeles")
-m.agg$DeepTorporTime[!is.na(m.agg$TorporHour) & m.agg$TorporHour<19] <- m.agg$DeepTorporTime[!is.na(m.agg$TorporHour) & m.agg$TorporHour<19]+86400
-
-ggplot(m.agg, aes(EE_J, Ts_max)) + geom_point(aes(col=Category)) + my_theme + facet_wrap(.~BirdID)  +
-  colScale
+# m.agg <- merge(agg_ir_mr, categories)
+# m.agg$Category <- factor(m.agg$Category, levels=c("Normothermic", "Transition", "DeepTorpor"))
+# 
+# m.agg$TransiHour<- str_pad(substr(m.agg$Time_TransitionStart, 1, 2), width=2, side="left", pad="0")
+# m.agg$TransiHour[m.agg$TransiHour==24] <- "00"
+# m.agg$TransiMin<- str_pad(substr(m.agg$Time_TransitionStart, 3, 4), width=2, side="left", pad="0")
+# m.agg$TransitionTime <- as.POSIXct(paste(paste("2021", "7", "23", sep = "-"), 
+#                                           paste(m.agg$TransiHour, 
+#                                                 m.agg$TransiMin, "00", sep = ":"), sep=" "),
+#                                     format='%Y-%m-%d %H:%M', tz="America/Los_Angeles")
+# m.agg$TransitionTime[!is.na(m.agg$TransiHour) & m.agg$TransiHour<19] <- m.agg$TransitionTime[!is.na(m.agg$TransiHour) & m.agg$TransiHour<19]+86400
+# 
+# 
+# m.agg$TorporHour<- str_pad(m.agg$Time_DeepTorporStart, width=4, side="left", pad="0")
+# m.agg$TorporHour<- substr(m.agg$TorporHour, 1, 2)
+# m.agg$TorporHour[m.agg$TorporHour==24] <- "00"
+# m.agg$TorporMin<- str_pad(substr(m.agg$Time_DeepTorporStart, 3, 4), width=2, side="left", pad="0")
+# m.agg$DeepTorporTime <- as.POSIXct(paste(paste("2021", "7", "23", sep = "-"), 
+#                                          paste(m.agg$TorporHour, 
+#                                                m.agg$TorporMin, "00", sep = ":"), sep=" "),
+#                                    format='%Y-%m-%d %H:%M', tz="America/Los_Angeles")
+# m.agg$DeepTorporTime[!is.na(m.agg$TorporHour) & m.agg$TorporHour<19] <- m.agg$DeepTorporTime[!is.na(m.agg$TorporHour) & m.agg$TorporHour<19]+86400
+# 
+# ggplot(m.agg, aes(EE_J, Ts_max)) + geom_point(aes(col=Category)) + my_theme + facet_wrap(.~BirdID)  +
+#   colScale
+library(scales)
+ggplot(EE_1min_forMerge, aes(SameDate, EE_J_min)) + geom_point(col="black") + my_theme +
+  scale_x_date(labels = date_format("%H"))#+ #facet_wrap(.~BirdID)  +
 
 
 ggplot(NULL, aes(DateLubri, Ts_max)) + geom_point(data=agg_ir_mr, col="red", size=3) + 
