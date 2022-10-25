@@ -35,6 +35,8 @@ caan02 <- read.csv(here("MR", "CAAN02_0623_WholeNight_Analyzed.csv"))
 paths <- dir(here::here("MR", "Multiple_CAAN2022"), pattern = ".csv$")
 names(paths) <- basename(paths)
 
+caan_multiple <- read.csv(here("MR", "Multiple_CAAN2022", "MR_summary_EE_Tc.csv"))
+
 
 ## For IR
 ir_dat <- read.csv(here::here("IR", "IR_data_CAAN2022.csv"))
@@ -62,6 +64,7 @@ SurfTemp.lab <- expression(atop(paste("Maximum Surface Temperature (", degree,"C
 
 # ##Fixed color scale for categories
 my_colors <- c("#23988aff", "#440558ff", "#9ed93aff", "#F38BA8") #
+my_colors <- c("#23988aff", "#440558ff", "#9ed93aff", "darkgoldenrod2") #NTDA to match AZ birds
 names(my_colors) <- levels(c("Normothermic", "Transition", "DeepTorpor", "Arousal"))
 colScale <- scale_colour_manual(name = "Category", values = my_colors)
 
@@ -138,21 +141,21 @@ MRsumm$SameDate <- lubridate::ymd_hms(MRsumm$SameDate, tz = "America/Los_Angeles
 
 write.csv(x = MRsumm, file = here::here("MR", "Multiple_CAAN2022", "MR_summary_EE_Tc.csv"))
 
-## Summarize by second
-MRsumm_1sec <- as.data.frame(MRsumm %>%
-                                 select(DateTime, BirdID, Category, TransitionTime, EE_J) %>%
-                                 group_by(BirdID, TransitionTime, Category, DateLubri = cut(DateTime, breaks="1 sec")) %>%
-                                 dplyr::summarize(EE_J = mean(EE_J)) %>%
-                                 ungroup())
-
-MRsumm_1sec$DateLubri <- lubridate::ymd_hms(MRsumm_1sec$DateLubri)
-MRsumm_1sec$SameDate <- as.POSIXct(paste(paste("2021", "7", "23", sep = "-"), 
-                                           as_hms(ymd_hms(MRsumm_1sec$DateLubri)), sep=" "),
-                                     format='%Y-%m-%d %H:%M:%S', tz="America/Los_Angeles")
-MRsumm_1sec$SameDate[MRsumm_1sec$SameDate<"2021-07-23 19:00:00"] <- MRsumm_1sec$SameDate[MRsumm_1sec$SameDate<"2021-07-23 19:00:00"]+86400
-MRsumm_1sec$DateLubri <- lubridate::ymd_hms(MRsumm_1sec$SameDate, tz = "America/Los_Angeles")
-
-MRsumm_1sec$EE_J_sec <- MRsumm_1sec$EE_J*4
+# ## Summarize by second
+# MRsumm_1sec <- as.data.frame(MRsumm %>%
+#                                  select(DateTime, BirdID, Category, TransitionTime, EE_J) %>%
+#                                  group_by(BirdID, TransitionTime, Category, DateLubri = cut(DateTime, breaks="1 sec")) %>%
+#                                  dplyr::summarize(EE_J = mean(EE_J)) %>%
+#                                  ungroup())
+# 
+# MRsumm_1sec$DateLubri <- lubridate::ymd_hms(MRsumm_1sec$DateLubri)
+# MRsumm_1sec$SameDate <- as.POSIXct(paste(paste("2021", "7", "23", sep = "-"), 
+#                                            as_hms(ymd_hms(MRsumm_1sec$DateLubri)), sep=" "),
+#                                      format='%Y-%m-%d %H:%M:%S', tz="America/Los_Angeles")
+# MRsumm_1sec$SameDate[MRsumm_1sec$SameDate<"2021-07-23 19:00:00"] <- MRsumm_1sec$SameDate[MRsumm_1sec$SameDate<"2021-07-23 19:00:00"]+86400
+# MRsumm_1sec$DateLubri <- lubridate::ymd_hms(MRsumm_1sec$SameDate, tz = "America/Los_Angeles")
+# 
+# MRsumm_1sec$EE_J_sec <- MRsumm_1sec$EE_J*4
 
 #mMRsumm_1sec <- merge(MRsumm_1sec, Categories)
 #MRsumm_1sec$TransitionTime <- as.POSIXct(paste(paste("2021", "7", "23", sep = "-"), 
@@ -168,45 +171,45 @@ MRsumm_1sec$EE_J_sec <- MRsumm_1sec$EE_J*4
 #                                  dplyr::summarize(across(c("EE_J", "ChamberTemp_C"), ~ mean(.x, na.rm = TRUE))) %>%
 #                                  ungroup())
 
-EE_1min_forMerge <- as.data.frame(MRsumm %>%
-                                        select(SameDate, EE_J) %>%
-                                        group_by(SameDate = cut(SameDate, breaks="1 min")) %>%
-                                        dplyr::summarize(EE_J_min = sum(EE_J, na.rm = TRUE)) %>%
-                                        ungroup())
-EE_1min_forMerge$SameDate <- lubridate::ymd_hms(EE_1min_forMerge$SameDate, tz = "America/Los_Angeles")
-EE_1min_forMerge <- dplyr::arrange(EE_1min_forMerge, SameDate)
-
 # EE_1min_forMerge <- as.data.frame(MRsumm %>%
-#                 select(DateTime, BirdID, Category, EE_J) %>%
-#                 group_by(BirdID, Category, DateLubri = cut(DateTime, breaks="1 min")) %>%
-#                 dplyr::summarize(EE_J_min=sum(EE_J)) %>%
-#                 ungroup())
+#                                         select(SameDate, EE_J) %>%
+#                                         group_by(SameDate = cut(SameDate, breaks="1 min")) %>%
+#                                         dplyr::summarize(EE_J_min = sum(EE_J, na.rm = TRUE)) %>%
+#                                         ungroup())
+# EE_1min_forMerge$SameDate <- lubridate::ymd_hms(EE_1min_forMerge$SameDate, tz = "America/Los_Angeles")
+# EE_1min_forMerge <- dplyr::arrange(EE_1min_forMerge, SameDate)
+# 
+# # EE_1min_forMerge <- as.data.frame(MRsumm %>%
+# #                 select(DateTime, BirdID, Category, EE_J) %>%
+# #                 group_by(BirdID, Category, DateLubri = cut(DateTime, breaks="1 min")) %>%
+# #                 dplyr::summarize(EE_J_min=sum(EE_J)) %>%
+# #                 ungroup())
+# 
+# Tc_1min <- as.data.frame(MRsumm %>%
+#                            select(DateTime, BirdID, Category, ChamberTemp_C) %>%
+#                            group_by(BirdID, Category, DateLubri = cut(DateTime, breaks="1 min")) %>%
+#                            dplyr::summarize(ChamberTemp_C=mean(ChamberTemp_C)) %>%
+#                            ungroup())
+# 
+# ir_forMerge <- as.data.frame(ir_dat %>%
+#                            select(DateTime, BirdID, Category, ChamberTemp_C) %>%
+#                            group_by(BirdID, Category, DateLubri = cut(DateTime, breaks="1 min")) %>%
+#                            dplyr::summarize(ChamberTemp_C=mean(ChamberTemp_C)) %>%
+#                            ungroup())
+# 
+# Merged_1min <- merge(EE_1min_forMerge, Tc_1min)
 
-Tc_1min <- as.data.frame(MRsumm %>%
-                           select(DateTime, BirdID, Category, ChamberTemp_C) %>%
-                           group_by(BirdID, Category, DateLubri = cut(DateTime, breaks="1 min")) %>%
-                           dplyr::summarize(ChamberTemp_C=mean(ChamberTemp_C)) %>%
-                           ungroup())
-
-ir_forMerge <- as.data.frame(ir_dat %>%
-                           select(DateTime, BirdID, Category, ChamberTemp_C) %>%
-                           group_by(BirdID, Category, DateLubri = cut(DateTime, breaks="1 min")) %>%
-                           dplyr::summarize(ChamberTemp_C=mean(ChamberTemp_C)) %>%
-                           ungroup())
-
-Merged_1min <- merge(EE_1min_forMerge, Tc_1min)
-
-MRsumm_1min <- MRsumm_1min_forMerge
-MRsumm_1min$DateLubri <- lubridate::ymd_hms(MRsumm_1min$DateLubri)
-MRsumm_1min$SameDate <- as.POSIXct(paste(paste("2022", "7", "22", sep = "-"), 
-                                      as_hms(ymd_hms(MRsumm_1min$DateLubri)), sep=" "),
-                                format='%Y-%m-%d %H:%M:%S', tz="America/Los_Angeles")
-MRsumm_1min$SameDate[MRsumm_1min$SameDate<"2022-07-23 19:00:00"] <- MRsumm_1min$SameDate[MRsumm_1min$SameDate<"2022-07-23 19:00:00"]+86400
-MRsumm_1min$DateLubri <- lubridate::ymd_hms(MRsumm_1min$SameDate, tz = "America/Los_Angeles")
-
-MRsumm_1min$EE_J_min <- MRsumm_1min$EE_J*60*4
-
-write.csv(x = MRsumm_1min, file = here::here("MR_summary_1min_EE_Tc.csv"))
+# MRsumm_1min <- MRsumm_1min_forMerge
+# MRsumm_1min$DateLubri <- lubridate::ymd_hms(MRsumm_1min$DateLubri)
+# MRsumm_1min$SameDate <- as.POSIXct(paste(paste("2022", "7", "22", sep = "-"), 
+#                                       as_hms(ymd_hms(MRsumm_1min$DateLubri)), sep=" "),
+#                                 format='%Y-%m-%d %H:%M:%S', tz="America/Los_Angeles")
+# MRsumm_1min$SameDate[MRsumm_1min$SameDate<"2022-07-23 19:00:00"] <- MRsumm_1min$SameDate[MRsumm_1min$SameDate<"2022-07-23 19:00:00"]+86400
+# MRsumm_1min$DateLubri <- lubridate::ymd_hms(MRsumm_1min$SameDate, tz = "America/Los_Angeles")
+# 
+# MRsumm_1min$EE_J_min <- MRsumm_1min$EE_J*60*4
+# 
+# write.csv(x = MRsumm_1min, file = here::here("MR_summary_1min_EE_Tc.csv"))
 
 # 
 # vars_keep <- names(ThermDat) %in% c("DateLubri", "EE_J")
@@ -286,6 +289,12 @@ caan29 <- ir_dat[ir_dat$BirdID=="CAAN29",]
 ## Add Tc and Ta column from thermocouple data into ir_dat
 # #Temps$DateLubri <- lubridate::ymd_hms(Temps$DateLubri, tz = "America/Los_Angeles")
 ## Average EE for every minute
+
+## If reading in caan_multiple, use this next few lines
+MRsumm <- caan_multiple
+MRsumm$BirdID <- as.factor(MRsumm$BirdID)
+MRsumm$SameDate <- as.POSIXct(MRsumm$SameDate)
+
 MR_ToMerge_1min <- as.data.frame(MRsumm %>%
   group_by(SameDate = cut(SameDate, breaks="1 min"), BirdID) %>%
   dplyr::summarize(EE_J = sum(EE_J)) %>%
@@ -300,7 +309,7 @@ MR_ToMerge_5min$SameDate <- lubridate::ymd_hms(MR_ToMerge_5min$SameDate, tz = "A
 
 caan29$Ts_max <- as.numeric(caan29$Ts_max)
 IR_ToMerge <- as.data.frame(caan29 %>%
-                              group_by(SameDate = cut(SameDate, breaks="1 min"), BirdID) %>%
+                              group_by(SameDate = cut(SameDate, breaks="1 min"), Category, BirdID) %>%
                               dplyr::summarize(Ts_max = mean(Ts_max)) %>%
                               ungroup())
 IR_ToMerge$SameDate <- lubridate::ymd_hms(IR_ToMerge$SameDate, tz = "America/Los_Angeles")
@@ -352,7 +361,8 @@ grid.arrange(ir_rihu, mr_rihu, nrow=2)
 
 
 ggplot(NULL, aes(SameDate, Ts_max)) + geom_point(data=agg_ir_mr, aes(SameDate, Ts_max), col="red", size=3) + 
-  geom_boxplot(data=agg_ir_mr, aes(y=EE_J), col="black") + my_theme + #facet_wrap(.~BirdID)  +   #colScale + 
+  #geom_boxplot(data=agg_ir_mr, aes(y=EE_J), col="black") +
+  my_theme + #facet_wrap(.~BirdID)  +   #colScale + 
   xlab("Energy expenditure (J/min)") + ylab(SurfTemp.lab) + scale_alpha_manual(values = c(0.8,0.6,0.8)) +
   theme(axis.text.x = element_text(size=10, angle = 90, vjust=0.5))
   # stat_smooth(aes(col=Category), method = "lm", formula = y ~ x + I(x^2), size = 1)
@@ -381,9 +391,9 @@ p <- ggplot(data=ir_dat, mapping=aes(SameDate, Ts_max)) + my_theme + facet_wrap(
 p
 
 ggplot(ir_dat, aes(SameDate, Ts_max)) +
-  geom_point(aes(col=Tamb)) + 
+  geom_point() + 
   my_theme + 
-  facet_grid(Category~., scales = "free_x") +
+  facet_wrap(.~BirdID, scales = "free_x") +
   scale_color_gradient(low="blue", high="red") +
   geom_hline(yintercept = 33, linetype="dotted") + 
   ylab(SurfTemp_short.lab)
@@ -694,8 +704,8 @@ ggplot(NULL, aes(x=SameDate, y=Ts_max)) + #facet_wrap(~BirdID, scales="free") +
   scale_y_continuous(name = "Max Ts",sec.axis=sec_axis(trans=~./1,name='MR (J/ 5 min)'))+
   geom_point(data=ir_dat[ir_dat$BirdID=="CAAN29",], aes(x=SameDate, y=Ts_max, col=Category), size=3) +
   geom_smooth(data=ir_dat[ir_dat$BirdID=="CAAN29",], aes(x=SameDate, y=Ts_max, col=Category)) +
-  geom_point(data=MR_ToMerge_5min, alpha=0.8, col="black", aes(y=EE_J)) + 
-  geom_line(data=MR_ToMerge_5min, aes(y=EE_J)) +
+  #geom_point(data=MR_ToMerge_5min, alpha=0.8, col="black", aes(y=EE_J)) + 
+  #geom_line(data=MR_ToMerge_5min, aes(y=EE_J)) +
   my_theme + colScale +
   theme(axis.text.x = element_text(size=20),
         legend.key.height=unit(3,"line"),
@@ -722,19 +732,21 @@ ggplot(NULL, aes(x=SameDate, y=Ts_max)) + facet_wrap(~BirdID, scales="free") +
   xlab("Time of night")
 
 
+## Emily poster
 ### CAAN29, MR and IR, 1 min average for MR
-ggplot(agg_ir_mr, aes(x=SameDate, y=Ts_max)) + #facet_wrap(~BirdID, scales="free") +
-  scale_y_continuous(name = "Max Ts",limits = c(-1,43), sec.axis=sec_axis(trans=~./10,name='MR (J/min)'))+
-  #geom_smooth(aes(Ts_max)) +
-  #geom_point(col="black", size=0.5) +
+ggplot(agg_ir_mr, aes(x=SameDate, y=Ts_max)) + facet_wrap(~BirdID, scales="free") +
+  scale_y_continuous(name = SurfTemp.lab,limits = c(-1,43), sec.axis=sec_axis(trans=~./5,name='MR (J/min)'))+
+  geom_line(aes(group=BirdID), alpha=0.5) +
+  geom_point(aes(col=Category), size=3) +
   #geom_line(data=agg_ir_mr, aes(SameDate, y=Tamb), linetype="dotted", col="gray") +
-  geom_point(data=agg_ir_mr, alpha=0.8, col='grey90', aes(y=EE_J*600)) + 
-  geom_smooth(data=agg_ir_mr, aes(y=EE_J*600)) +
-  my_theme + #scale_color_manual(values=my_colors) +
-  # theme(axis.text = element_text(size=10),
-  #       legend.key.height=unit(3,"line"),
-  #       axis.line.x = element_line(colour = "grey50"),
-  #       axis.line.y = element_line(colour = "grey50")) +
+  geom_point(data=agg_ir_mr, alpha=0.8, col='red', size=2, aes(y=EE_J*5)) + 
+  geom_line(data=agg_ir_mr, aes(y=EE_J*5), col="red", alpha=0.5) +
+  my_theme + colScale + #scale_color_manual(values=my_colors) +
+  theme(axis.text = element_text(size=20),
+        legend.key.height=unit(3,"line"),
+        axis.line.x = element_line(colour = "grey50"),
+        axis.line.y = element_line(colour = "grey50"), axis.line.y.right = element_line(color="red"),
+        axis.text.y.right = element_text(color="red"), axis.title.y.right = element_text(color="red")) +
   xlab("Time of night")
 
 

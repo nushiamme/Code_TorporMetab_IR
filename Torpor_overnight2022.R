@@ -29,14 +29,17 @@ library(glue) ## kind of like paste, using it for time axis
 
 ## Read in files
 #MRsumm_1min <- read.csv(here::here("MR_summary_1min_EE_Tc.csv"))
-#MRsumm <- read.csv(here::here("MR_summary_EE_Tc.csv"))
+MRsumm <- read.csv(here::here("MR_summary_EE_Tc_AllAZbirds2022.csv"))
+MRsumm$SameDate <- lubridate::ymd_hms(MRsumm$SameDate, tz = "America/Los_Angeles")
+MRsumm$DateLubri <- lubridate::ymd_hms(MRsumm$DateLubri, tz = "America/Los_Angeles")
+MRsumm$BirdID <- as.factor(MRsumm$BirdID)
 #caan02 <- read.csv(here("MR", "CAAN02_0623_WholeNight_Analyzed.csv"))
-paths <- dir(here::here("MR", "2022_analyzed", "RIHU07_test"), pattern = ".csv$")
+paths <- dir(here::here("MR", "Multiple_AZ2022"), pattern = ".csv$")
 names(paths) <- basename(paths)
 
 
 ## For IR
-ir_dat <- read.csv(here::here("IR", "IR_data_2022.csv"))
+ir_dat <- read.csv(here::here("IR", "IR_data_SWRS2022.csv"))
 #categories <- read.csv(here::here("IR", "Category_Entry.csv"))
 #categories$BirdID <- as.factor(categories$BirdID)
 
@@ -47,8 +50,13 @@ ir_dat <- read.csv(here::here("IR", "IR_data_2022.csv"))
 my_theme <- theme_classic(base_size = 30) + 
   theme(panel.border = element_rect(colour = "black", fill=NA))
 
-my_theme2 <- theme_classic(base_size = 20) + 
+my_theme2 <- theme_classic(base_size = 15) + 
   theme(panel.border = element_rect(color='black', size=0.5, fill=NA))
+
+my_theme_doubleaxis <- theme_classic(base_size = 15) + 
+  theme(axis.line.x = element_line(color='black', size=0.5), 
+        axis.line.y.left = element_line(color='black', size=0.5), 
+        axis.line.y.right = element_line(color="red"))
 
 my_theme_blank <- theme_classic(base_size = 30) + 
   theme(axis.title.y = element_text(vjust = 2),
@@ -59,14 +67,28 @@ Tc_short.lab <- expression(atop(paste("Ta (", degree,"C)")))
 SurfTemp_short.lab <- expression(atop(paste("Ts (", degree,"C)")))
 SurfTemp.lab <- expression(atop(paste("Maximum Surface Temperature (", degree,"C)")))
 
-# ##Fixed color scale for categories
-# my_colors <- c("#23988aff", "#F38BA8", "#9ed93aff") #"#440558ff"
-# names(my_colors) <- levels(c("Normothermic", "Transition", "DeepTorpor"))
-# colScale <- scale_colour_manual(name = "Category", values = my_colors)
+##Fixed color scale for categories
+#my_colors <- c("#F38BA8", "#9ed93aff", "#23988aff", "#440558ff") #ADNT
+my_colors <- c("#23988aff", "#440558ff", "#9ed93aff", "darkgoldenrod2") #NTDA
+my_colors_five <- c("#23988aff",  "#F38BA8", "#440558ff",  "#9ed93aff", "darkgoldenrod2") #NSTDA
+my_colors_noArousal <- c("#23988aff",  "#F38BA8", "#440558ff",  "#9ed93aff") #NSTDA
+my_colors_bchu01 <- c("#23988aff", "#440558ff",  "#9ed93aff") #NTD
+#names(my_colors) <- c("Normothermic", "ShallowTorpor", "Transition", "DeepTorpor", "Arousal")
+colScale <- scale_colour_manual(name = "Category", values = my_colors)
+colScale_bchu01 <- scale_colour_manual(name = "Category", values = my_colors,
+                                       labels=c("Normothermic", "Transition", "DeepTorpor"))
+
+colScale_named <- scale_colour_manual(name = "Category", values = my_colors_five, 
+                                labels=c("Normothermic", "ShallowTorpor", "Transition", "DeepTorpor", "Arousal"))
+colScale_named_noShallow <- scale_colour_manual(name = "Category", values = my_colors, 
+                                      labels=c("Normothermic", "Transition", "DeepTorpor", "Arousal"))
+colScale_noArousal <- scale_colour_manual(name = "Category", values = my_colors_noArousal, 
+                                          labels=c("Normothermic", "ShallowTorpor", "Transition", "DeepTorpor"))
+
 
 #### Ignore this section if reading in MRsumm_1min data frame and/or MR_summ ####
 
-ThermFiles <- lapply(here::here("MR", "2022_analyzed", "RIHU07_test", paths), read.csv, header=T)
+ThermFiles <- lapply(here::here("MR", "Multiple_AZ2022", paths), read.csv, header=T)
 
 for (i in 1:length(ThermFiles)) {
   #ThermFiles[[i]] <- ThermFiles[[i]] %>%
@@ -106,6 +128,14 @@ for (i in 1:length(ThermFiles)) {
 # Thermsumm <- data.frame(matrix(NA, nrow=length(ThermFiles), ncol=9))
 # names(Thermsumm) <- c("BirdID", "File", "Day", "Month", "Year", "Time_hours", "VO2_ml_min", "AmbientTemp_C", "ChamberTemp_C")
 # Thermsumm$File <- noquote(names(paths))
+
+# for(i in 1:length(ThermFiles)){
+#   print (names(ThermFiles[[i]]))
+# }
+
+for(i in 1:length(ThermFiles)){
+  print (ThermFiles[[i]][2,1])
+}
 
 ThermDat <- do.call(rbind.data.frame, ThermFiles)
 
@@ -169,7 +199,8 @@ ThermDat$BirdID <- as.factor(ThermDat$BirdID)
 ## Lighton equation: 16 + 5.164*RER	
 ## So for RER of 1 (carbs), 16 + 5.164*1 = 21.16
 ## For RER of 0.71 (protein/fat), 16 + 5.164*0.71 = 19.67
-## TAKES A MINUTE or two TO RUN
+## TAKES A FEW MINUTES TO RUN
+# AVOID RUNNING IF UNNECESSARY
 MRsumm <- data.frame()
 for(n in unique(ThermDat$BirdID)) {
   dat1 <- ThermDat[ThermDat$BirdID==n,]
@@ -178,17 +209,28 @@ for(n in unique(ThermDat$BirdID)) {
       dat1$EE_J[i] <- dat1$VO2_ml_min[i]*21.16/1000
     } else {
       dat1$EE_J[i] <- dat1$VO2_ml_min[i]*19.67/1000
-    }
-  }
+    } 
+  } 
+  print(head(dat1))
   MRsumm <- rbind(MRsumm, dat1)
 }
 
 MRsumm_safe <- MRsumm
 
+MRsumm <- MRsumm_safe
+
 
 head(MRsumm)
 MRsumm$ChamberTemp_C <- as.numeric(MRsumm$ChamberTemp_C)
 MRsumm$AmbientTemp_C <- as.numeric(MRsumm$AmbientTemp_C)
+
+NightID <- c(paste0(unique(MRsumm$BirdID), "_", "1"), "BTMG01_2")
+#levels(MRsumm$BirdID)[length(levels(MRsumm$BirdID))+1] <- "BTMG01_1"
+#levels(MRsumm$BirdID)[length(levels(MRsumm$BirdID))+1] <- "BTMG01_2"
+levels(MRsumm$BirdID) <- c(levels(MRsumm$BirdID), NightID)
+MRsumm$BirdID[MRsumm$BirdID=="BTMG01" & MRsumm$Day<11] <- "BTMG01_1"
+MRsumm$BirdID[MRsumm$BirdID=="BTMG01" & MRsumm$Day>10] <- "BTMG01_2"
+MRsumm$BirdID[!(MRsumm$BirdID %in% c("BTMG01_1", "BTMG01_2"))] <- paste0(MRsumm$BirdID[!(MRsumm$BirdID %in% c("BTMG01_1", "BTMG01_2"))], "_", "1")
 
 # #MRsumm$TransitionTime <- as.POSIXct(paste(paste("2021", "7", "23", sep = "-"), 
 #                                           paste(str_pad(substr(MRsumm$Time_transitionStart, 1, 2), width=2, side="left", pad="0"), 
@@ -202,23 +244,23 @@ MRsumm$SameDate[hour(MRsumm$DateLubri)<19] <- MRsumm$SameDate[hour(MRsumm$DateLu
 MRsumm$SameDate <- lubridate::ymd_hms(MRsumm$SameDate, tz = "America/Los_Angeles")
 
 
-write.csv(x = MRsumm, file = here::here("MR_summary_EE_Tc_RIHU07.csv"))
+write.csv(x = MRsumm, file = here::here("MR_summary_EE_Tc_AllAZbirds2022.csv"))
 
 ## Summarize by second
-MRsumm_1sec <- as.data.frame(MRsumm %>%
-                                 select(DateTime, BirdID, Category, TransitionTime, EE_J) %>%
-                                 group_by(BirdID, TransitionTime, Category, DateLubri = cut(DateTime, breaks="1 sec")) %>%
-                                 dplyr::summarize(EE_J = mean(EE_J)) %>%
-                                 ungroup())
-
-MRsumm_1sec$DateLubri <- lubridate::ymd_hms(MRsumm_1sec$DateLubri)
-MRsumm_1sec$SameDate <- as.POSIXct(paste(paste("2021", "7", "23", sep = "-"), 
-                                           as_hms(ymd_hms(MRsumm_1sec$DateLubri)), sep=" "),
-                                     format='%Y-%m-%d %H:%M:%S', tz="America/Los_Angeles")
-MRsumm_1sec$SameDate[MRsumm_1sec$SameDate<"2021-07-23 19:00:00"] <- MRsumm_1sec$SameDate[MRsumm_1sec$SameDate<"2021-07-23 19:00:00"]+86400
-MRsumm_1sec$DateLubri <- lubridate::ymd_hms(MRsumm_1sec$SameDate, tz = "America/Los_Angeles")
-
-MRsumm_1sec$EE_J_sec <- MRsumm_1sec$EE_J*4
+# MRsumm_1sec <- as.data.frame(MRsumm %>%
+#                                  select(DateTime, BirdID, Category, TransitionTime, EE_J) %>%
+#                                  group_by(BirdID, TransitionTime, Category, DateLubri = cut(DateTime, breaks="1 sec")) %>%
+#                                  dplyr::summarize(EE_J = mean(EE_J)) %>%
+#                                  ungroup())
+# 
+# MRsumm_1sec$DateLubri <- lubridate::ymd_hms(MRsumm_1sec$DateLubri)
+# MRsumm_1sec$SameDate <- as.POSIXct(paste(paste("2021", "7", "23", sep = "-"), 
+#                                            as_hms(ymd_hms(MRsumm_1sec$DateLubri)), sep=" "),
+#                                      format='%Y-%m-%d %H:%M:%S', tz="America/Los_Angeles")
+# MRsumm_1sec$SameDate[MRsumm_1sec$SameDate<"2021-07-23 19:00:00"] <- MRsumm_1sec$SameDate[MRsumm_1sec$SameDate<"2021-07-23 19:00:00"]+86400
+# MRsumm_1sec$DateLubri <- lubridate::ymd_hms(MRsumm_1sec$SameDate, tz = "America/Los_Angeles")
+# 
+# MRsumm_1sec$EE_J_sec <- MRsumm_1sec$EE_J*4
 
 #mMRsumm_1sec <- merge(MRsumm_1sec, Categories)
 #MRsumm_1sec$TransitionTime <- as.POSIXct(paste(paste("2021", "7", "23", sep = "-"), 
@@ -290,10 +332,12 @@ write.csv(x = MRsumm_1min, file = here::here("MR_summary_1min_EE_Tc.csv"))
 
 
 #### IR data ####
+## For IR - reading in - ignore if already done
+ir_dat <- read.csv(here::here("IR", "IR_data_SWRS2022.csv"))
 ## Subset out only good runs
 #ir_dat <- ir_dat[ir_dat$Run=="Y",]
 ##Only include values where eye region is clearly visible
-#ir_dat <- ir_dat[ir_dat$Reliable=="Y",]
+ir_dat <- ir_dat[!(ir_dat$ReliableTry=="N"),]
 ir_dat <- ir_dat[!is.na(ir_dat$Time),]
 
 ## Processing time
@@ -323,15 +367,25 @@ ir_dat$SameDate <- lubridate::ymd_hms(ir_dat$SameDate, tz = "America/Los_Angeles
 ir_dat$Tamb <- as.numeric(ir_dat$Tamb)
 ir_dat$Teye <- as.numeric(ir_dat$Teye)
 
-rihu07 <- ir_dat[ir_dat$BirdID=="RIHU07",]
 
 ## Fill in Categories
 #ir_dat$Category <- NA
-ir_dat$BirdID <- as.factor(ir_dat$BirdID)
+#ir_dat$BirdID <- as.factor(ir_dat$BirdID)
 #ir_dat <- merge(ir_dat, categories, "BirdID")
 
+ir_dat$NightID <- as.factor(ir_dat$NightID)
+
 ir_dat$Ts_max <- as.numeric(ir_dat$Ts_max)
-ir_dat$Category <- factor(ir_dat$Category, levels=c("Normothermic", "Transition", "DeepTorpor"))
+ir_dat$Category <- as.factor(ir_dat$Category) #, levels=c("Normothermic", "Transition", "DeepTorpor", "Arousal"))
+
+ir_dat$Category <- recode_factor(ir_dat$Category, Normothermic = "N", 
+                                 ShallowTorpor = "S", Transition = "T", DeepTorpor = "D", Arousal = "A")
+#ir_dat$Category <- factor(ir_dat$Category, levels=c("Normothermic", "Transition", "DeepTorpor"))
+
+rihu07 <- ir_dat[ir_dat$BirdID=="RIHU07",]
+bchu02 <- ir_dat[ir_dat$BirdID=="BCHU02",]
+rihu10 <- ir_dat[ir_dat$BirdID=="RIHU10",]
+btmg01 <- ir_dat[ir_dat$NightID=="BTMG01_1",]
 
 # ir_dat$TransiHour<- str_pad(substr(ir_dat$Time_TransitionStart, 1, 2), width=2, side="left", pad="0")
 # ir_dat$TransiHour[ir_dat$TransiHour==24] <- "00"
@@ -359,14 +413,16 @@ MR_ToMerge_5min <- as.data.frame(MRsumm %>%
 MR_ToMerge_5min$SameDate <- lubridate::ymd_hms(MR_ToMerge_5min$SameDate, tz = "America/Los_Angeles")
 
 rihu07$Ts_max <- as.numeric(rihu07$Ts_max)
-IR_ToMerge <- as.data.frame(rihu07 %>%
-                              group_by(SameDate = cut(SameDate, breaks="1 min"), BirdID) %>%
+IR_ToMerge <- as.data.frame(ir_dat %>%
+                              group_by(SameDate = cut(SameDate, breaks="1 min"), NightID, Category, Tamb) %>%
                               dplyr::summarize(Ts_max = mean(Ts_max)) %>%
                               ungroup())
 IR_ToMerge$SameDate <- lubridate::ymd_hms(IR_ToMerge$SameDate, tz = "America/Los_Angeles")
 
-agg_ir_mr <- merge(IR_ToMerge, MR_ToMerge_1min,  by=c("SameDate", "BirdID"))
-agg_ir_mr$BirdID <- as.factor(agg_ir_mr$BirdID)
+agg_ir_mr <- merge(IR_ToMerge, MR_ToMerge_1min,  by.x= c("SameDate", "NightID"), by.y =c("SameDate", "BirdID"))
+agg_ir_mr$NightID <- as.factor(agg_ir_mr$NightID)
+
+#agg_ir_mr$BirdID <- as.factor(agg_ir_mr$BirdID)
 # m.agg <- merge(agg_ir_mr, categories)
 # m.agg$Category <- factor(m.agg$Category, levels=c("Normothermic", "Transition", "DeepTorpor"))
 # 
@@ -393,14 +449,11 @@ agg_ir_mr$BirdID <- as.factor(agg_ir_mr$BirdID)
 # ggplot(m.agg, aes(EE_J, Ts_max)) + geom_point(aes(col=Category)) + my_theme + facet_wrap(.~BirdID)  +
 #   colScale
 #library(scales)
-ir_rihu <- ggplot(data=NULL, aes(SameDate, Ts_max)) + #geom_point(data=MR_ToMerge_1min, aes(SameDate, EE_J), col="black") + 
-  my_theme +
-  geom_point(data=rihu07, aes(SameDate, Ts_max), col='red') +
-  theme(axis.text.x = element_text(size=10, angle = 90, vjust=0.5))
+# ir_rihu <- 
 
-mr_rihu <- ggplot(data=NULL, aes(SameDate, EE_J)) + geom_point(data=MR_ToMerge_1min, aes(SameDate, EE_J), col="black") + 
-  my_theme +
-  #geom_point(data=rihu07, aes(SameDate, Ts_max), col='red') +
+
+ggplot(data=MR_ToMerge_1min[MR_ToMerge_1min$BirdID=="RIHU10",], aes(SameDate, EE_J)) + geom_point(col="black") + 
+  my_theme + #geom_point(data=rihu07, aes(SameDate, Ts_max), col='red') +
   theme(axis.text.x = element_text(size=10, angle = 90, vjust=0.5))
 
 grid.arrange(ir_rihu, mr_rihu, nrow=2)
@@ -410,15 +463,190 @@ grid.arrange(ir_rihu, mr_rihu, nrow=2)
   #scale_x_date(labels = date_format("%H"))#+ #facet_wrap(.~BirdID)  +
 
 
-ggplot(NULL, aes(SameDate, Ts_max)) + geom_point(data=rihu07, aes(SameDate, Ts_max), col="red", size=3) + 
-  geom_boxplot(data=agg_ir_mr, aes(y=EE_J), col="black") + my_theme + #facet_wrap(.~BirdID)  +   #colScale + 
+## Plots for Emily's Murdoch poster
+birds_IRplot <- c("BCHU01_1", "BCHU02_1", "BCHU03_1", "BTMG01_01", "BTMG01_2", "BTMG03_1", "RIHU01_1", "RIHU09_1", "RIHU10_1")
+
+## 9 birds IR plot
+ggplot(data=ir_dat[ir_dat$NightID %in% c(birds_IRplot, "BTMG01_1") & !is.na(ir_dat$Ts_max),], aes(SameDate, Ts_max)) + facet_wrap(.~NightID) +
+  my_theme +
+  geom_line(aes(y=Tamb), linetype="dotted", col="grey30", size=1.5) +
+  geom_point(aes(SameDate, Ts_max, col=Category), size=3) + #scale_color_viridis_d() +
+  colScale_named + xlab("Time of Night") + ylab(SurfTemp.lab) +
+  theme(axis.text.x = element_text(size=20), legend.key.height =unit(3,"line"))
+
+ggplot(data=ir_dat[ir_dat$NightID=="BTMG01_1" & !is.na(ir_dat$Ts_max),], aes(SameDate, Ts_max)) + facet_wrap(.~NightID) +
+  my_theme +
+  geom_line(aes(y=Tamb), linetype="dotted", col="grey30", size=1.5) +
+  geom_point(aes(SameDate, Ts_max, col=Category), size=3) + #scale_color_viridis_d() +
+  colScale + xlab("Time of Night") + ylab(SurfTemp.lab) +
+  theme(axis.text.x = element_text(size=20))
+
+## Good individual IR BCHU plots
+ggplot(data=ir_dat[ir_dat$BirdID=="BCHU01",], aes(SameDate, Ts_max)) + #geom_point(data=MR_ToMerge_1min, aes(SameDate, EE_J), col="black") + 
+  my_theme +
+  geom_line(aes(y=Tamb), linetype="dotted", col="grey30", size=1.5) +
+  geom_point(aes(SameDate, Ts_max, col=Category), size=3) +
+  xlab("Time of Night") + ylab(SurfTemp.lab) +
+  colScale_bchu01 + theme(axis.text.x = element_text(size=20))
+
+ggplot(data=ir_dat[ir_dat$BirdID=="BCHU02",], aes(SameDate, Ts_max)) + #geom_point(data=MR_ToMerge_1min, aes(SameDate, EE_J), col="black") + 
+  my_theme +
+  geom_line(aes(y=Tamb), linetype="dotted", col="grey30", size=1.5) +
+  geom_point(aes(SameDate, Ts_max, col=Category), size=3) +
+  xlab("Time of Night") + ylab(SurfTemp.lab) +
+  colScale_named_noShallow + theme(axis.text.x = element_text(size=20))
+
+ggplot(data=ir_dat[ir_dat$BirdID=="BCHU03",], aes(SameDate, Ts_max)) + #geom_point(data=MR_ToMerge_1min, aes(SameDate, EE_J), col="black") + 
+  my_theme +
+  geom_line(aes(y=Tamb), linetype="dotted", col="grey30", size=1.5) +
+  geom_point(aes(SameDate, Ts_max, col=Category), size=3) +
+  xlab("Time of Night") + ylab(SurfTemp.lab) +
+  colScale_named_noShallow + theme(axis.text.x = element_text(size=20))
+
+## IR plus MR for RIHU10, CAAN29, BTMG01_1
+### Latest 10/21 - try BCHU03, RIHU09, RIHU02
+ggplot(data=ir_dat[ir_dat$NightID=="BTMG01_1",], aes(x=SameDate, y=Ts_max)) + facet_grid(.~BirdID) +
+  geom_point(aes(x=SameDate, y=Ts_max, col=Category), size=2) +
+  geom_line(aes(y=Tamb, group=NightID), linetype="dotted", col="grey20", size=1) +
+  my_theme + colScale_named + #scale_color_manual(values=my_colors) +
+  theme(axis.text = element_text(size=20),
+        legend.key.height=unit(3,"line"),
+        axis.line.x = element_line(colour = "grey50"),
+        axis.line.y = element_line(colour = "grey50")) +
+  xlab("Time of night") +  ylab(SurfTemp.lab)
+
+ggplot(MR_ToMerge_1min[MR_ToMerge_1min$BirdID=="BTMG01_1",], aes(x=SameDate, y=EE_J)) + facet_wrap(~BirdID, scales="free") +
+  geom_point(alpha=0.8, col='grey10') + 
+  #geom_smooth(data=MR_ToMerge_1min, aes(y=EE_J*600)) +
+  my_theme + #scale_color_manual(values=my_colors) +
+  theme(axis.text = element_text(size=20),
+        legend.key.height=unit(3,"line"),
+        axis.line.x = element_line(colour = "grey50"),
+        axis.line.y = element_line(colour = "grey50")) +
+  xlab("Time of night")
+
+ggplot(MR_ToMerge_1min[MR_ToMerge_1min$BirdID=="RIHU10_1",], aes(x=SameDate, y=EE_J)) + facet_wrap(~BirdID, scales="free") +
+  geom_point(alpha=0.8, col='black') + 
+  #geom_smooth(data=MR_ToMerge_1min, aes(y=EE_J*600)) +
+  my_theme + #scale_color_manual(values=my_colors) +
+  theme(axis.text = element_text(size=20),
+        legend.key.height=unit(3,"line"),
+        axis.line.x = element_line(colour = "grey50"),
+        axis.line.y = element_line(colour = "grey50")) +
+  xlab("Time of night")
+
+## Emily poster
+### RIHU10, MR and IR, 1 min average for MR
+ggplot(agg_ir_mr[agg_ir_mr$NightID=="RIHU10_1",], aes(x=SameDate, y=Ts_max)) + facet_wrap(~NightID, scales="free") +
+  scale_y_continuous(name = SurfTemp.lab,limits = c(-1,43), sec.axis=sec_axis(trans=~./1,name='MR (J/min)'))+
+  geom_line(aes(group=NightID), alpha=0.5) +
+  geom_point(aes(col=Category), size=3) +
+  #geom_line(data=agg_ir_mr, aes(SameDate, y=Tamb), linetype="dotted", col="gray") +
+  geom_point(alpha=0.8, col='red', size=2, aes(y=EE_J*5)) + 
+  geom_line(aes(y=EE_J*5), col="red", alpha=0.5) +
+  my_theme + colScale_noArousal + #scale_color_manual(values=my_colors) +
+  theme(axis.text = element_text(size=20),
+        legend.key.height=unit(3,"line"),
+        axis.line.x = element_line(colour = "grey50"),
+        axis.line.y = element_line(colour = "grey50"), axis.line.y.right = element_line(color="red"),
+        axis.text.y.right = element_text(color="red"), axis.title.y.right = element_text(color="red")) +
+  xlab("Time of night")
+
+### BTMG01_2, MR and IR, 1 min average for MR
+ggplot(agg_ir_mr[agg_ir_mr$NightID=="BTMG01_2",], aes(x=SameDate, y=Ts_max)) + facet_wrap(~NightID, scales="free") +
+  scale_y_continuous(name = SurfTemp.lab,limits = c(-1,43), sec.axis=sec_axis(trans=~./1,name='MR (J/min)'))+
+  geom_line(aes(group=NightID), alpha=0.5) +
+  geom_point(aes(col=Category), size=3) +
+  #geom_line(data=agg_ir_mr, aes(SameDate, y=Tamb), linetype="dotted", col="gray") +
+  geom_point(alpha=0.8, col='red', size=2, aes(y=EE_J*5)) + 
+  geom_line(aes(y=EE_J*5), col="red", alpha=0.5) +
+  my_theme + colScale_noArousal + #scale_color_manual(values=my_colors) +
+  theme(axis.text = element_text(size=20),
+        legend.key.height=unit(3,"line"),
+        axis.line.x = element_line(colour = "grey50"),
+        axis.line.y = element_line(colour = "grey50"), axis.line.y.right = element_line(color="red"),
+        axis.text.y.right = element_text(color="red"), axis.title.y.right = element_text(color="red")) +
+  xlab("Time of night")
+
+agg_ir_mr$EE_scaled <- scale(agg_ir_mr$EE_J,scale = F)
+library(scales)
+agg_ir_mr$EE_scaled <- rescale(agg_ir_mr$EE_J, from = c(0, 12), to = c(0, 40))
+### All indivs, MR and IR, 1 min average for MR
+ggplot(agg_ir_mr[!is.na(agg_ir_mr$Category),], aes(x=SameDate, y=Ts_max)) + facet_wrap(~NightID) +
+  scale_y_continuous(name = SurfTemp.lab,limits = c(-1,43), sec.axis=sec_axis(trans=~./3.33,name='MR (J/min)'))+
+  geom_line(aes(group=NightID), alpha=0.5) +
+  geom_point(aes(col=Category), size=3) +
+  geom_line(data=agg_ir_mr[!is.na(agg_ir_mr$Tamb),], aes(SameDate, y=Tamb), linetype="dotted", col="black") +
+  geom_point(alpha=0.8, col='red', size=2, aes(y=EE_scaled)) + 
+  geom_line(aes(y=EE_scaled), col="red", alpha=0.5) +
+  my_theme + colScale_named + #scale_color_manual(values=my_colors) +
+  theme(axis.text = element_text(size=20),
+        legend.key.height=unit(3,"line"),
+        axis.line.x = element_line(colour = "grey50"),
+        axis.line.y = element_line(colour = "grey50"), axis.line.y.right = element_line(color="red"),
+        axis.text.y.right = element_text(color="red"), axis.title.y.right = element_text(color="red")) +
+  xlab("Time of night")
+
+
+
+
+## All birds, IR plus MR
+ggplot(agg_ir_mr[agg_ir_mr$NightID=="BCHU03_1",], aes(x=SameDate, y=Ts_max)) + facet_wrap(.~NightID, scales="free") +
+  scale_y_continuous(name = SurfTemp.lab,limits = c(-1,43), sec.axis=sec_axis(trans=~./5,name='MR (J/min)'))+
+  geom_line(aes(group="NightID")) +
+  geom_point(aes(x=SameDate, y=Ts_max, col=Category), size=4) +
+  #geom_line(data=IR_ToMerge[!is.na(IR_ToMerge$Tamb),], aes(SameDate, y=Tamb), linetype="dotted", col="gray") +
+  geom_point(aes(x=SameDate, y=EE_J*5), alpha=0.8, col='red', size=3) + 
+  #geom_smooth(data=MR_ToMerge_1min, aes(y=EE_J*600)) +
+  my_theme + colScale_named_noShallow + #scale_color_manual(values=my_colors) +
+  theme(axis.text = element_text(size=20),
+        legend.key.height=unit(3,"line"),
+        axis.line.x = element_line(colour = "grey50"),
+        axis.line.y = element_line(colour = "grey50"), axis.line.y.right = element_line(color="red"),
+        axis.text.y.right = element_text(color="red"), axis.title.y.right = element_text(color="red")) +
+  xlab("Time of night") + ylab(SurfTemp.lab)
+
+ggplot(agg_ir_mr[agg_ir_mr$NightID =="RIHU09_1",], aes(x=SameDate, y=Ts_max)) + facet_wrap(.~NightID, scales="free") +
+  scale_y_continuous(name = SurfTemp.lab,limits = c(-1,43), sec.axis=sec_axis(trans=~./5,name='MR (J/min)'))+
+  geom_line(aes(group="NightID")) +
+  geom_point(aes(x=SameDate, y=Ts_max, col=Category), size=4) +
+  #geom_line(data=IR_ToMerge[!is.na(IR_ToMerge$Tamb),], aes(SameDate, y=Tamb), linetype="dotted", col="gray") +
+  geom_point(data=agg_ir_mr[agg_ir_mr$EE_J < 3 & agg_ir_mr$NightID=="RIHU09_1",], aes(x=SameDate, y=EE_J*5), alpha=0.8, col='red', size=3) + 
+  #geom_smooth(data=MR_ToMerge_1min, aes(y=EE_J*600)) +
+  my_theme + colScale_named + #scale_color_manual(values=my_colors) +
+  theme(axis.text = element_text(size=20),
+        legend.key.height=unit(3,"line"),
+        axis.line.x = element_line(colour = "grey50"),
+        axis.line.y = element_line(colour = "grey50"), axis.line.y.right = element_line(color="red"),
+        axis.text.y.right = element_text(color="red"), axis.title.y.right = element_text(color="red")) +
+  xlab("Time of night")
+
+
+### AZ - ALL THE BIRDS - MR
+ggplot(NULL, aes(x=SameDate, y=EE_J)) + facet_wrap(~BirdID) +
+  #scale_y_continuous(name = "Max Ts",sec.axis=sec_axis(trans=~.*1000,name='MR (Watts)'))+
+  geom_point(data=MRsumm, alpha=0.8, col='grey90') + #geom_smooth(data=MRsumm) + 
+  #geom_smooth(data=ir_dat, aes(x=SameDate, y=Ts_max, col=Category)) + #[ir_dat$BirdID %in% MRsumm$BirdID,]
+  my_theme2 + scale_color_manual(values=my_colors) +
+  theme(axis.text.x = element_text(size=20),
+        legend.key.height=unit(3,"line"),
+        axis.line.x = element_line(colour = "grey50"),
+        axis.line.y = element_line(colour = "grey50")) +
+  #scale_x_datetime(limits = ymd_hms(c("2021-07-07 21:00:00", "2021-07-08 03:00:00"))) +
+  ylab("Energy expended (J) per second") + xlab("Time of night")
+
+
+
+
+ggplot(NULL, aes(SameDate, Ts_max)) + geom_point(data=ir_dat, aes(SameDate, Ts_max), col="red", size=3) + 
+  geom_point(data=agg_ir_mr, aes(SameDate, y=EE_J), col="black") + my_theme + facet_wrap(.~BirdID)  +   #colScale + 
   xlab("Energy expenditure (J/min)") + ylab(SurfTemp.lab) + scale_alpha_manual(values = c(0.8,0.6,0.8)) +
-  theme(axis.text.x = element_text(size=10, angle = 90, vjust=0.5))
+  theme(axis.text.x = element_text(size=20, angle = 90, vjust=0.5))
   # stat_smooth(aes(col=Category), method = "lm", formula = y ~ x + I(x^2), size = 1)
 
 MR_ToMerge_1min <- dplyr::arrange(MR_ToMerge_1min, DateLubri)
   
-ggplot(MR_ToMerge_1min, aes(DateLubri, EE_J)) + geom_point(col="red", size=3) + 
+ggplot(MR_ToMerge_1min, aes(SameDate, EE_J)) + geom_point(col="red", size=3) + facet_grid(.~BirdID) +
     my_theme
   
 
@@ -707,11 +935,24 @@ ggplot(MRsumm_1min, aes(x=DateLubri, y=EExp_J)) + facet_wrap(~BirdID, scales="fr
   ylab("Energy expended (J) per second") + xlab("Time of night")
 
 ### ALL THE BIRDS!!!
-ggplot(NULL, aes(x=DateLubri, y=EE_J)) + facet_wrap(~BirdID, scales="free") +
+ggplot(NULL, aes(x=SameDate, y=EE_J)) + facet_wrap(~BirdID) +
   scale_y_continuous(name = "Max Ts",sec.axis=sec_axis(trans=~.*1000,name='MR (Watts)'))+
-  geom_point(data=MRsumm, alpha=0.8, col='grey90') + geom_smooth(data=MRsumm, aes(col=Category)) + 
-  geom_smooth(data=ir_dat[ir_dat$BirdID %in% MRsumm$BirdID,], aes(x=DateLubri, y=Ts_max)) +
+  geom_point(data=MRsumm, alpha=0.8, col='grey90') + #geom_smooth(data=MRsumm) + 
+  geom_smooth(data=ir_dat, aes(x=SameDate, y=Ts_max, col=Category)) + #[ir_dat$BirdID %in% MRsumm$BirdID,]
   my_theme + scale_color_manual(values=my_colors) +
+  theme(axis.text.x = element_text(size=20),
+        legend.key.height=unit(3,"line"),
+        axis.line.x = element_line(colour = "grey50"),
+        axis.line.y = element_line(colour = "grey50")) +
+  #scale_x_datetime(limits = ymd_hms(c("2021-07-07 21:00:00", "2021-07-08 03:00:00"))) +
+  ylab("Energy expended (J) per second") + xlab("Time of night")
+
+### AZ - ALL THE BIRDS - MR
+ggplot(NULL, aes(x=SameDate, y=EE_J)) + facet_wrap(~BirdID) +
+  #scale_y_continuous(name = "Max Ts",sec.axis=sec_axis(trans=~.*1000,name='MR (Watts)'))+
+  geom_point(data=MRsumm, alpha=0.8, col='grey90') + #geom_smooth(data=MRsumm) + 
+  #geom_smooth(data=ir_dat, aes(x=SameDate, y=Ts_max, col=Category)) + #[ir_dat$BirdID %in% MRsumm$BirdID,]
+  my_theme2 + scale_color_manual(values=my_colors) +
   theme(axis.text.x = element_text(size=20),
         legend.key.height=unit(3,"line"),
         axis.line.x = element_line(colour = "grey50"),
@@ -797,6 +1038,40 @@ metab_rihu07 <- ggplot(MR_ToMerge_1min, aes(x=SameDate, y=Ts_max)) + #facet_wrap
 
 grid.arrange(temp_rihu07, mr_rihu, ncol=1)
 
+temp_rihu10 <- ggplot(ir_dat[!is.na(ir_dat$Ts_max) & ir_dat$BirdID=="RIHU10",], 
+                      aes(x=SameDate, y=Ts_max)) + #facet_wrap(~BirdID, scales="free") +
+  #scale_y_continuous(name = "Max Ts",limits = c(-1,43), sec.axis=sec_axis(trans=~./10,name='MR (J/min)'))+
+  #geom_smooth() +
+  geom_point(col="black", size=2) +
+  geom_line(aes(SameDate, y=Tamb), linetype="dashed", col="black", size=1) +
+  #geom_point(data=MR_ToMerge_1min, alpha=0.8, col='grey30', aes(y=EE_J*60)) + 
+  #geom_smooth(data=MR_ToMerge_1min, aes(y=EE_J*60)) +
+  my_theme + #scale_color_manual(values=my_colors) +
+  geom_hline(yintercept = c(18,29.5)) +
+  # theme(axis.text = element_text(size=10),
+  #       legend.key.height=unit(3,"line"),
+  #       axis.line.x = element_line(colour = "grey50"),
+  #       axis.line.y = element_line(colour = "grey50")) +
+  xlab("Time of night")
+temp_rihu10
+
+temp_btmg01 <- ggplot(ir_dat[!is.na(ir_dat$Ts_max) & ir_dat$BirdID=="BTMG01" & ir_dat$Run==2,], 
+                      aes(x=SameDate, y=Ts_max)) + #facet_wrap(~BirdID, scales="free") +
+  #scale_y_continuous(name = "Max Ts",limits = c(-1,43), sec.axis=sec_axis(trans=~./10,name='MR (J/min)'))+
+  #geom_smooth() +
+  geom_point(col="black", size=2) +
+  geom_line(aes(SameDate, y=Tamb), linetype="dashed", col="black", size=1) +
+  #geom_point(data=MR_ToMerge_1min, alpha=0.8, col='grey30', aes(y=EE_J*60)) + 
+  #geom_smooth(data=MR_ToMerge_1min, aes(y=EE_J*60)) +
+  my_theme + #scale_color_manual(values=my_colors) +
+  geom_hline(yintercept = c(18,29.5)) +
+  # theme(axis.text = element_text(size=10),
+  #       legend.key.height=unit(3,"line"),
+  #       axis.line.x = element_line(colour = "grey50"),
+  #       axis.line.y = element_line(colour = "grey50")) +
+  xlab("Time of night")
+temp_btmg01
+
 
 ### RIHU07, MR and IR, 1 min average for MR
 ggplot(NULL, aes(x=SameDate, y=Ts_max)) + #facet_wrap(~BirdID, scales="free") +
@@ -819,6 +1094,18 @@ ggplot(NULL, aes(x=SameDate, y=Ts_max)) + #facet_wrap(~BirdID, scales="free") +
 ggplot(MRsumm_sub, aes(x=DateLubri, y=EE_J)) + facet_wrap(~BirdID, scales="free") + 
   geom_point(alpha=0.8, col='grey90') + geom_smooth(aes(col=Category)) + 
   my_theme + scale_color_manual(values=my_colors) +
+  theme(axis.text.x = element_text(size=20),
+        legend.key.height=unit(3,"line"),
+        axis.line.x = element_line(colour = "grey50"),
+        axis.line.y = element_line(colour = "grey50")) +
+  #scale_x_datetime(limits = ymd_hms(c("2021-07-07 21:00:00", "2021-07-08 03:00:00"))) +
+  ylab("Energy expended (J) per second") + xlab("Time of night")
+
+
+## All birds just IR
+ggplot(ir_dat, aes(x=SameDate, y=Ts_max)) + facet_wrap(~BirdID) + 
+  geom_point() + #geom_smooth(aes(col=Category)) + 
+  geom_line(aes(y=Tamb), linetype="dashed") + my_theme + #scale_color_manual(values=my_colors) +
   theme(axis.text.x = element_text(size=20),
         legend.key.height=unit(3,"line"),
         axis.line.x = element_line(colour = "grey50"),
