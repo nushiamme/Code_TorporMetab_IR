@@ -100,7 +100,7 @@ ThermDat$BirdID <- as.factor(ThermDat$BirdID)
 
 #categ_func(ThermDat)
 
-
+MRsumm <- caan_multiple
 
 ## First 2 hours get an RER of 21.16, next hours get RER of 19.67
 ## Lighton equation: 16 + 5.164*RER	
@@ -309,7 +309,7 @@ MR_ToMerge_5min$SameDate <- lubridate::ymd_hms(MR_ToMerge_5min$SameDate, tz = "A
 
 caan29$Ts_max <- as.numeric(caan29$Ts_max)
 IR_ToMerge <- as.data.frame(caan29 %>%
-                              group_by(SameDate = cut(SameDate, breaks="1 min"), Category, BirdID) %>%
+                              group_by(SameDate = cut(SameDate, breaks="1 min"), Category, BirdID, Tamb) %>%
                               dplyr::summarize(Ts_max = mean(Ts_max)) %>%
                               ungroup())
 IR_ToMerge$SameDate <- lubridate::ymd_hms(IR_ToMerge$SameDate, tz = "America/Los_Angeles")
@@ -734,13 +734,15 @@ ggplot(NULL, aes(x=SameDate, y=Ts_max)) + facet_wrap(~BirdID, scales="free") +
 
 ## Emily poster
 ### CAAN29, MR and IR, 1 min average for MR
+agg_ir_mr$EE_scaled <- rescale(agg_ir_mr$EE_J, from = c(0, 5), to = c(0, 43))
+
 ggplot(agg_ir_mr, aes(x=SameDate, y=Ts_max)) + facet_wrap(~BirdID, scales="free") +
-  scale_y_continuous(name = SurfTemp.lab,limits = c(-1,43), sec.axis=sec_axis(trans=~./5,name='MR (J/min)'))+
+  scale_y_continuous(name = SurfTemp.lab,limits = c(-1,43), sec.axis=sec_axis(trans=~./8.6,name='MR (J/min)'))+
   geom_line(aes(group=BirdID), alpha=0.5) +
   geom_point(aes(col=Category), size=3) +
-  #geom_line(data=agg_ir_mr, aes(SameDate, y=Tamb), linetype="dotted", col="gray") +
-  geom_point(data=agg_ir_mr, alpha=0.8, col='red', size=2, aes(y=EE_J*5)) + 
-  geom_line(data=agg_ir_mr, aes(y=EE_J*5), col="red", alpha=0.5) +
+  geom_line(data=agg_ir_mr, aes(SameDate, y=Tamb), linetype="dotted", col="black", size=1) +
+  geom_point(data=agg_ir_mr, alpha=0.8, col='red', size=2, aes(y=EE_scaled)) + 
+  geom_line(data=agg_ir_mr, aes(y=EE_scaled), col="red", alpha=0.5) +
   my_theme + colScale + #scale_color_manual(values=my_colors) +
   theme(axis.text = element_text(size=20),
         legend.key.height=unit(3,"line"),

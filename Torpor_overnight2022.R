@@ -39,7 +39,7 @@ names(paths) <- basename(paths)
 
 
 ## For IR
-ir_dat <- read.csv(here::here("IR", "IR_data_SWRS2022.csv"))
+#ir_dat <- read.csv(here::here("IR", "IR_data_SWRS2022.csv"))
 #categories <- read.csv(here::here("IR", "Category_Entry.csv"))
 #categories$BirdID <- as.factor(categories$BirdID)
 
@@ -133,6 +133,7 @@ for (i in 1:length(ThermFiles)) {
 #   print (names(ThermFiles[[i]]))
 # }
 
+# Checking column names. Can change numbers to get different parts of data frame to check for consistency in naming
 for(i in 1:length(ThermFiles)){
   print (ThermFiles[[i]][2,1])
 }
@@ -211,7 +212,7 @@ for(n in unique(ThermDat$BirdID)) {
       dat1$EE_J[i] <- dat1$VO2_ml_min[i]*19.67/1000
     } 
   } 
-  print(head(dat1))
+  #print(head(dat1))
   MRsumm <- rbind(MRsumm, dat1)
 }
 
@@ -276,14 +277,14 @@ write.csv(x = MRsumm, file = here::here("MR_summary_EE_Tc_AllAZbirds2022.csv"))
 #                                  dplyr::summarize(across(c("EE_J", "ChamberTemp_C"), ~ mean(.x, na.rm = TRUE))) %>%
 #                                  ungroup())
 
-EE_1min_forMerge <- as.data.frame(MRsumm %>%
-                                        select(SameDate, EE_J) %>%
-                                        group_by(SameDate = cut(SameDate, breaks="1 min")) %>%
-                                        dplyr::summarize(EE_J_min = sum(EE_J, na.rm = TRUE)) %>%
-                                        ungroup())
-EE_1min_forMerge$SameDate <- lubridate::ymd_hms(EE_1min_forMerge$SameDate, tz = "America/Los_Angeles")
-
-EE_1min_forMerge <- dplyr::arrange(EE_1min_forMerge, SameDate)
+# EE_1min_forMerge <- as.data.frame(MRsumm %>%
+#                                         select(SameDate, EE_J) %>%
+#                                         group_by(SameDate = cut(SameDate, breaks="1 min")) %>%
+#                                         dplyr::summarize(EE_J_min = sum(EE_J, na.rm = TRUE)) %>%
+#                                         ungroup())
+# EE_1min_forMerge$SameDate <- lubridate::ymd_hms(EE_1min_forMerge$SameDate, tz = "America/Los_Angeles")
+# 
+# EE_1min_forMerge <- dplyr::arrange(EE_1min_forMerge, SameDate)
 
 # EE_1min_forMerge <- as.data.frame(MRsumm %>%
 #                 select(DateTime, BirdID, Category, EE_J) %>%
@@ -303,19 +304,19 @@ EE_1min_forMerge <- dplyr::arrange(EE_1min_forMerge, SameDate)
 #                            dplyr::summarize(ChamberTemp_C=mean(ChamberTemp_C)) %>%
 #                            ungroup())
 # 
-Merged_1min <- merge(EE_1min_forMerge, Tc_1min)
-
-MRsumm_1min <- MRsumm_1min_forMerge
-MRsumm_1min$DateLubri <- lubridate::ymd_hms(MRsumm_1min$DateLubri)
-MRsumm_1min$SameDate <- as.POSIXct(paste(paste("2021", "7", "23", sep = "-"), 
-                                      as_hms(ymd_hms(MRsumm_1min$DateLubri)), sep=" "),
-                                format='%Y-%m-%d %H:%M:%S', tz="America/Los_Angeles")
-MRsumm_1min$SameDate[MRsumm_1min$SameDate<"2022-07-23 19:00:00"] <- MRsumm_1min$SameDate[MRsumm_1min$SameDate<"2022-07-23 19:00:00"]+86400
-MRsumm_1min$DateLubri <- lubridate::ymd_hms(MRsumm_1min$SameDate, tz = "America/Los_Angeles")
-
-MRsumm_1min$EE_J_min <- MRsumm_1min$EE_J*60*4
-
-write.csv(x = MRsumm_1min, file = here::here("MR_summary_1min_EE_Tc.csv"))
+# Merged_1min <- merge(EE_1min_forMerge, Tc_1min)
+# 
+# MRsumm_1min <- MRsumm_1min_forMerge
+# MRsumm_1min$DateLubri <- lubridate::ymd_hms(MRsumm_1min$DateLubri)
+# MRsumm_1min$SameDate <- as.POSIXct(paste(paste("2021", "7", "23", sep = "-"), 
+#                                       as_hms(ymd_hms(MRsumm_1min$DateLubri)), sep=" "),
+#                                 format='%Y-%m-%d %H:%M:%S', tz="America/Los_Angeles")
+# MRsumm_1min$SameDate[MRsumm_1min$SameDate<"2022-07-23 19:00:00"] <- MRsumm_1min$SameDate[MRsumm_1min$SameDate<"2022-07-23 19:00:00"]+86400
+# MRsumm_1min$DateLubri <- lubridate::ymd_hms(MRsumm_1min$SameDate, tz = "America/Los_Angeles")
+# 
+# MRsumm_1min$EE_J_min <- MRsumm_1min$EE_J*60*4
+# 
+# write.csv(x = MRsumm_1min, file = here::here("MR_summary_1min_EE_Tc.csv"))
 
 # 
 # vars_keep <- names(ThermDat) %in% c("DateLubri", "EE_J")
@@ -419,8 +420,14 @@ IR_ToMerge <- as.data.frame(ir_dat %>%
                               ungroup())
 IR_ToMerge$SameDate <- lubridate::ymd_hms(IR_ToMerge$SameDate, tz = "America/Los_Angeles")
 
-agg_ir_mr <- merge(IR_ToMerge, MR_ToMerge_1min,  by.x= c("SameDate", "NightID"), by.y =c("SameDate", "BirdID"))
+agg_ir_mr <- merge(MR_ToMerge_1min, IR_ToMerge, by.y =c("SameDate", "BirdID"), by.x= c("SameDate", "NightID"))
 agg_ir_mr$NightID <- as.factor(agg_ir_mr$NightID)
+library(scales)
+
+## Excluding BTMG01_1 to do the scaling
+agg_ir_mr <- agg_ir_mr[agg_ir_mr$NightID!="BTMG01_1",]
+agg_ir_mr$EE_scaled <- rescale(agg_ir_mr$EE_J, from = c(0, 10.06), to = c(0, 43))
+
 
 #agg_ir_mr$BirdID <- as.factor(agg_ir_mr$BirdID)
 # m.agg <- merge(agg_ir_mr, categories)
@@ -525,6 +532,17 @@ ggplot(MR_ToMerge_1min[MR_ToMerge_1min$BirdID=="BTMG01_1",], aes(x=SameDate, y=E
         axis.line.y = element_line(colour = "grey50")) +
   xlab("Time of night")
 
+ggplot(MR_ToMerge_1min[MR_ToMerge_1min$BirdID=="BTMG01_2",], aes(x=SameDate, y=EE_J)) + facet_wrap(~BirdID, scales="free") +
+  geom_point(alpha=0.8, col='grey10') + 
+  #geom_smooth(data=MR_ToMerge_1min, aes(y=EE_J*600)) +
+  my_theme + #scale_color_manual(values=my_colors) +
+  theme(axis.text = element_text(size=20),
+        legend.key.height=unit(3,"line"),
+        axis.line.x = element_line(colour = "grey50"),
+        axis.line.y = element_line(colour = "grey50")) +
+  xlab("Time of night")
+
+
 ggplot(MR_ToMerge_1min[MR_ToMerge_1min$BirdID=="RIHU10_1",], aes(x=SameDate, y=EE_J)) + facet_wrap(~BirdID, scales="free") +
   geom_point(alpha=0.8, col='black') + 
   #geom_smooth(data=MR_ToMerge_1min, aes(y=EE_J*600)) +
@@ -536,14 +554,15 @@ ggplot(MR_ToMerge_1min[MR_ToMerge_1min$BirdID=="RIHU10_1",], aes(x=SameDate, y=E
   xlab("Time of night")
 
 ## Emily poster
+## Using "scaled EE_J" = EE_scaled column in agg_ir_mr because that is scaled to the range of IR values (-1 to 43)
 ### RIHU10, MR and IR, 1 min average for MR
 ggplot(agg_ir_mr[agg_ir_mr$NightID=="RIHU10_1",], aes(x=SameDate, y=Ts_max)) + facet_wrap(~NightID, scales="free") +
-  scale_y_continuous(name = SurfTemp.lab,limits = c(-1,43), sec.axis=sec_axis(trans=~./1,name='MR (J/min)'))+
+  scale_y_continuous(name = SurfTemp.lab,limits = c(-1,43), sec.axis=sec_axis(trans=~./4,name='MR (J/min)'))+
   geom_line(aes(group=NightID), alpha=0.5) +
   geom_point(aes(col=Category), size=3) +
-  #geom_line(data=agg_ir_mr, aes(SameDate, y=Tamb), linetype="dotted", col="gray") +
-  geom_point(alpha=0.8, col='red', size=2, aes(y=EE_J*5)) + 
-  geom_line(aes(y=EE_J*5), col="red", alpha=0.5) +
+  geom_line(aes(SameDate, y=Tamb), linetype="dotted", col="black", size=1) +
+  geom_point(alpha=0.8, col='red', size=2, aes(y=EE_scaled)) + 
+  geom_line(aes(y=EE_scaled), col="red", alpha=0.5) +
   my_theme + colScale_noArousal + #scale_color_manual(values=my_colors) +
   theme(axis.text = element_text(size=20),
         legend.key.height=unit(3,"line"),
@@ -553,14 +572,14 @@ ggplot(agg_ir_mr[agg_ir_mr$NightID=="RIHU10_1",], aes(x=SameDate, y=Ts_max)) + f
   xlab("Time of night")
 
 ### BTMG01_2, MR and IR, 1 min average for MR
-ggplot(agg_ir_mr[agg_ir_mr$NightID=="BTMG01_2",], aes(x=SameDate, y=Ts_max)) + facet_wrap(~NightID, scales="free") +
-  scale_y_continuous(name = SurfTemp.lab,limits = c(-1,43), sec.axis=sec_axis(trans=~./1,name='MR (J/min)'))+
+ggplot(agg_ir_mr[agg_ir_mr$NightID=="BTMG01_2" & !is.na(agg_ir_mr$Ts_max),], aes(x=SameDate, y=Ts_max)) + facet_wrap(~NightID, scales="free") +
+  scale_y_continuous(name = SurfTemp.lab,limits = c(-1,43), sec.axis=sec_axis(trans=~./4,name='MR (J/min)'))+
   geom_line(aes(group=NightID), alpha=0.5) +
   geom_point(aes(col=Category), size=3) +
-  #geom_line(data=agg_ir_mr, aes(SameDate, y=Tamb), linetype="dotted", col="gray") +
-  geom_point(alpha=0.8, col='red', size=2, aes(y=EE_J*5)) + 
-  geom_line(aes(y=EE_J*5), col="red", alpha=0.5) +
-  my_theme + colScale_noArousal + #scale_color_manual(values=my_colors) +
+  geom_line(aes(SameDate, y=Tamb), linetype="dotted", col="black", size=1) +
+  geom_point(alpha=0.8, col='red', size=2, aes(y=EE_scaled)) + 
+  geom_line(aes(y=EE_scaled), col="red", alpha=0.5) +
+  my_theme + colScale_named_noShallow + #scale_color_manual(values=my_colors) +
   theme(axis.text = element_text(size=20),
         legend.key.height=unit(3,"line"),
         axis.line.x = element_line(colour = "grey50"),
@@ -568,9 +587,87 @@ ggplot(agg_ir_mr[agg_ir_mr$NightID=="BTMG01_2",], aes(x=SameDate, y=Ts_max)) + f
         axis.text.y.right = element_text(color="red"), axis.title.y.right = element_text(color="red")) +
   xlab("Time of night")
 
-agg_ir_mr$EE_scaled <- scale(agg_ir_mr$EE_J,scale = F)
-library(scales)
-agg_ir_mr$EE_scaled <- rescale(agg_ir_mr$EE_J, from = c(0, 12), to = c(0, 40))
+### BTMG02_1, MR and IR, 1 min average for MR
+ggplot(agg_ir_mr[agg_ir_mr$NightID=="BTMG02_1",], aes(x=SameDate, y=Ts_max)) + facet_wrap(~NightID, scales="free") +
+  scale_y_continuous(name = SurfTemp.lab,limits = c(-1,43), sec.axis=sec_axis(trans=~./4,name='MR (J/min)'))+
+  geom_line(aes(group=NightID), alpha=0.5) +
+  geom_point(aes(col=Category), size=3) +
+  geom_line(aes(SameDate, y=Tamb), linetype="dotted", col="black", size=1) +
+  geom_point(alpha=0.8, col='red', size=2, aes(y=EE_scaled)) + 
+  geom_line(aes(y=EE_scaled), col="red", alpha=0.5) +
+  my_theme + colScale_named_noShallow + #scale_color_manual(values=my_colors) +
+  theme(axis.text = element_text(size=20),
+        legend.key.height=unit(3,"line"),
+        axis.line.x = element_line(colour = "grey50"),
+        axis.line.y = element_line(colour = "grey50"), axis.line.y.right = element_line(color="red"),
+        axis.text.y.right = element_text(color="red"), axis.title.y.right = element_text(color="red")) +
+  xlab("Time of night")
+
+### BCHU03_1, MR and IR, 1 min average for MR
+ggplot(agg_ir_mr[agg_ir_mr$NightID=="BCHU03_1",], aes(x=SameDate, y=Ts_max)) + facet_wrap(~NightID, scales="free") +
+  scale_y_continuous(name = SurfTemp.lab,limits = c(-1,43), sec.axis=sec_axis(trans=~./4,name='MR (J/min)'))+
+  geom_line(aes(group=NightID), alpha=0.5) +
+  geom_point(aes(col=Category), size=3) +
+  geom_line(aes(SameDate, y=Tamb), linetype="dotted", col="black", size=1) +
+  geom_point(alpha=0.8, col='red', size=2, aes(y=EE_scaled)) + 
+  geom_line(aes(y=EE_scaled), col="red", alpha=0.5) +
+  my_theme + colScale_named_noShallow + #scale_color_manual(values=my_colors) +
+  theme(axis.text = element_text(size=20),
+        legend.key.height=unit(3,"line"),
+        axis.line.x = element_line(colour = "grey50"),
+        axis.line.y = element_line(colour = "grey50"), axis.line.y.right = element_line(color="red"),
+        axis.text.y.right = element_text(color="red"), axis.title.y.right = element_text(color="red")) +
+  xlab("Time of night")
+
+### RIHU09_1, MR and IR, 1 min average for MR
+ggplot(agg_ir_mr[agg_ir_mr$NightID=="RIHU09_1",], aes(x=SameDate, y=Ts_max)) + facet_wrap(~NightID, scales="free") +
+  scale_y_continuous(name = SurfTemp.lab,limits = c(-1,43), sec.axis=sec_axis(trans=~./4,name='MR (J/min)'))+
+  geom_line(aes(group=NightID), alpha=0.5) +
+  geom_point(aes(col=Category), size=3) +
+  geom_line(aes(SameDate, y=Tamb), linetype="dotted", col="black", size=1) +
+  geom_point(alpha=0.8, col='red', size=2, aes(y=EE_scaled)) + 
+  geom_line(aes(y=EE_scaled), col="red", alpha=0.5) +
+  my_theme + colScale_named_noShallow + #scale_color_manual(values=my_colors) +
+  theme(axis.text = element_text(size=20),
+        legend.key.height=unit(3,"line"),
+        axis.line.x = element_line(colour = "grey50"),
+        axis.line.y = element_line(colour = "grey50"), axis.line.y.right = element_line(color="red"),
+        axis.text.y.right = element_text(color="red"), axis.title.y.right = element_text(color="red")) +
+  xlab("Time of night")
+
+### RIHU02_1, MR and IR, 1 min average for MR
+ggplot(agg_ir_mr[agg_ir_mr$NightID=="RIHU02_1",], aes(x=SameDate, y=Ts_max)) + facet_wrap(~NightID, scales="free") +
+  scale_y_continuous(name = SurfTemp.lab,limits = c(-1,43), sec.axis=sec_axis(trans=~./4,name='MR (J/min)'))+
+  geom_line(aes(group=NightID), alpha=0.5) +
+  geom_point(aes(col=Category), size=3) +
+  geom_line(aes(SameDate, y=Tamb), linetype="dotted", col="black", size=1) +
+  geom_point(alpha=0.8, col='red', size=2, aes(y=EE_scaled)) + 
+  geom_line(aes(y=EE_scaled), col="red", alpha=0.5) +
+  my_theme + colScale_named_noShallow + #scale_color_manual(values=my_colors) +
+  theme(axis.text = element_text(size=20),
+        legend.key.height=unit(3,"line"),
+        axis.line.x = element_line(colour = "grey50"),
+        axis.line.y = element_line(colour = "grey50"), axis.line.y.right = element_line(color="red"),
+        axis.text.y.right = element_text(color="red"), axis.title.y.right = element_text(color="red")) +
+  xlab("Time of night")
+
+### RIHU03_1, MR and IR, 1 min average for MR
+ggplot(agg_ir_mr[agg_ir_mr$NightID=="RIHU03_1",], aes(x=SameDate, y=Ts_max)) + facet_wrap(~NightID, scales="free") +
+  scale_y_continuous(name = SurfTemp.lab,limits = c(-1,43), sec.axis=sec_axis(trans=~./4,name='MR (J/min)'))+
+  geom_line(aes(group=NightID), alpha=0.5) +
+  geom_point(aes(col=Category), size=3) +
+  geom_line(aes(SameDate, y=Tamb), linetype="dotted", col="black", size=1) +
+  geom_point(alpha=0.8, col='red', size=2, aes(y=EE_scaled)) + 
+  geom_line(aes(y=EE_scaled), col="red", alpha=0.5) +
+  my_theme + colScale_named_noShallow + #scale_color_manual(values=my_colors) +
+  theme(axis.text = element_text(size=20),
+        legend.key.height=unit(3,"line"),
+        axis.line.x = element_line(colour = "grey50"),
+        axis.line.y = element_line(colour = "grey50"), axis.line.y.right = element_line(color="red"),
+        axis.text.y.right = element_text(color="red"), axis.title.y.right = element_text(color="red")) +
+  xlab("Time of night")
+
+
 ### All indivs, MR and IR, 1 min average for MR
 ggplot(agg_ir_mr[!is.na(agg_ir_mr$Category),], aes(x=SameDate, y=Ts_max)) + facet_wrap(~NightID) +
   scale_y_continuous(name = SurfTemp.lab,limits = c(-1,43), sec.axis=sec_axis(trans=~./3.33,name='MR (J/min)'))+
