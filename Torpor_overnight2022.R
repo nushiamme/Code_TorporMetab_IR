@@ -10,6 +10,8 @@ library(gganimate)
 library(janitor) ## To make a row into colnames
 library(lubridate)
 library(hms) ## To use as_hms function to extract just hms from a Lubridate DateTime var
+library(scales) ## For rescaling EE_J to same scales
+
 
 ##For IR data
 library(stringr)
@@ -74,7 +76,7 @@ my_colors_five <- c("#23988aff",  "#F38BA8", "#440558ff",  "#9ed93aff", "darkgol
 my_colors_noArousal <- c("#23988aff",  "#F38BA8", "#440558ff",  "#9ed93aff") #NSTDA
 my_colors_bchu01 <- c("#23988aff", "#440558ff",  "#9ed93aff") #NTD
 #names(my_colors) <- c("Normothermic", "ShallowTorpor", "Transition", "DeepTorpor", "Arousal")
-colScale <- scale_colour_manual(name = "Category", values = my_colors)
+colScale <- scale_colour_manual(name = "Category", values = my_colors_five)
 colScale_bchu01 <- scale_colour_manual(name = "Category", values = my_colors,
                                        labels=c("Normothermic", "Transition", "DeepTorpor"))
 
@@ -218,7 +220,7 @@ for(n in unique(ThermDat$BirdID)) {
 
 MRsumm_safe <- MRsumm
 
-MRsumm <- MRsumm_safe
+#MRsumm <- MRsumm_safe
 
 
 head(MRsumm)
@@ -420,14 +422,19 @@ IR_ToMerge <- as.data.frame(ir_dat %>%
                               ungroup())
 IR_ToMerge$SameDate <- lubridate::ymd_hms(IR_ToMerge$SameDate, tz = "America/Los_Angeles")
 
-agg_ir_mr <- merge(MR_ToMerge_1min, IR_ToMerge, by.y =c("SameDate", "BirdID"), by.x= c("SameDate", "NightID"))
-agg_ir_mr$NightID <- as.factor(agg_ir_mr$NightID)
-library(scales)
+agg_ir_mr <- merge(MR_ToMerge_1min, IR_ToMerge, by.x =c("SameDate", "BirdID"), by.y= c("SameDate", "NightID"))
+agg_ir_mr$BirdID <- as.factor(agg_ir_mr$BirdID)
+agg_ir_mr$NightID <- as.factor(agg_ir_mr$BirdID)
 
 ## Excluding BTMG01_1 to do the scaling
-agg_ir_mr <- agg_ir_mr[agg_ir_mr$NightID!="BTMG01_1",]
-agg_ir_mr$EE_scaled <- rescale(agg_ir_mr$EE_J, from = c(0, 10.06), to = c(0, 43))
-
+agg_ir_mr <- agg_ir_mr[agg_ir_mr$BirdID!="BTMG01_1",]
+## Until we included RIHU05 and RIHU11, these limits were (0,10.06) and (0,43). This the range of values in EE_J and Tsmax 
+## Respectively, to make the two axes scale correctly with each other
+#agg_ir_mr$EE_scaled <- scales::rescale(agg_ir_mr$EE_J, from = c(0, 10.06), to = c(0, 43))
+agg_ir_mr$EE_scaled <- scales::rescale(agg_ir_mr$EE_J, from = c(0, 11.8), to = c(0, 43))
+agg_ir_mr$Species <- substr(agg_ir_mr$BirdID, 1, 4)
+agg_ir_mr$Category <- recode_factor(agg_ir_mr$Category, N = "Normothermy", 
+                                    S = "ShallowTorpor", T = "Transition", D = "DeepTorpor", A = "Arousal")
 
 #agg_ir_mr$BirdID <- as.factor(agg_ir_mr$BirdID)
 # m.agg <- merge(agg_ir_mr, categories)
@@ -510,6 +517,15 @@ ggplot(data=ir_dat[ir_dat$BirdID=="BCHU03",], aes(SameDate, Ts_max)) + #geom_poi
   xlab("Time of Night") + ylab(SurfTemp.lab) +
   colScale_named_noShallow + theme(axis.text.x = element_text(size=20))
 
+## RIHU
+ggplot(data=ir_dat[ir_dat$BirdID=="RIHU05",], aes(SameDate, Ts_max)) + #geom_point(data=MR_ToMerge_1min, aes(SameDate, EE_J), col="black") + 
+  my_theme +
+  geom_line(aes(y=Tamb), linetype="dotted", col="grey30", size=1.5) +
+  geom_point(aes(SameDate, Ts_max, col=Category), size=3) +
+  xlab("Time of Night") + ylab(SurfTemp.lab) +
+  colScale + 
+  theme(axis.text.x = element_text(size=20))
+
 ## IR plus MR for RIHU10, CAAN29, BTMG01_1
 ### Latest 10/21 - try BCHU03, RIHU09, RIHU02
 ggplot(data=ir_dat[ir_dat$NightID=="BTMG01_1",], aes(x=SameDate, y=Ts_max)) + facet_grid(.~BirdID) +
@@ -542,8 +558,30 @@ ggplot(MR_ToMerge_1min[MR_ToMerge_1min$BirdID=="BTMG01_2",], aes(x=SameDate, y=E
         axis.line.y = element_line(colour = "grey50")) +
   xlab("Time of night")
 
+ggplot(MR_ToMerge_1min[MR_ToMerge_1min$BirdID=="RIHU05_1",], aes(x=SameDate, y=EE_J)) + #facet_wrap(~BirdID, scales="free") +
+  geom_point(alpha=0.8, col='grey10') + 
+  #geom_smooth(data=MR_ToMerge_1min, aes(y=EE_J*600)) +
+  my_theme + #scale_color_manual(values=my_colors) +
+  theme(axis.text = element_text(size=20),
+        legend.key.height=unit(3,"line"),
+        axis.line.x = element_line(colour = "grey50"),
+        axis.line.y = element_line(colour = "grey50")) +
+  xlab("Time of night")
+
 
 ggplot(MR_ToMerge_1min[MR_ToMerge_1min$BirdID=="RIHU10_1",], aes(x=SameDate, y=EE_J)) + facet_wrap(~BirdID, scales="free") +
+  geom_point(alpha=0.8, col='black') + 
+  #geom_smooth(data=MR_ToMerge_1min, aes(y=EE_J*600)) +
+  my_theme + #scale_color_manual(values=my_colors) +
+  theme(axis.text = element_text(size=20),
+        legend.key.height=unit(3,"line"),
+        axis.line.x = element_line(colour = "grey50"),
+        axis.line.y = element_line(colour = "grey50")) +
+  xlab("Time of night")
+
+
+
+ggplot(MR_ToMerge_1min[MR_ToMerge_1min$BirdID=="RIHU11_1",], aes(x=SameDate, y=EE_J)) + facet_wrap(~BirdID, scales="free") +
   geom_point(alpha=0.8, col='black') + 
   #geom_smooth(data=MR_ToMerge_1min, aes(y=EE_J*600)) +
   my_theme + #scale_color_manual(values=my_colors) +
@@ -667,6 +705,39 @@ ggplot(agg_ir_mr[agg_ir_mr$NightID=="RIHU03_1",], aes(x=SameDate, y=Ts_max)) + f
         axis.text.y.right = element_text(color="red"), axis.title.y.right = element_text(color="red")) +
   xlab("Time of night")
 
+## RIHU05
+ggplot(agg_ir_mr[agg_ir_mr$NightID=="RIHU05_1",], aes(x=SameDate, y=Ts_max)) + facet_wrap(~NightID, scales="free") +
+  scale_y_continuous(name = SurfTemp.lab,limits = c(-1,43), sec.axis=sec_axis(trans=~./4,name='MR (J/min)'))+
+  geom_line(aes(group=NightID), alpha=0.5) +
+  geom_point(aes(col=Category), size=3) +
+  geom_line(aes(SameDate, y=Tamb), linetype="dotted", col="black", size=1) +
+  geom_point(alpha=0.8, col='red', size=2, aes(y=EE_scaled)) + 
+  geom_line(aes(y=EE_scaled), col="red", alpha=0.5) +
+  #geom_line(data=MR_ToMerge_1min[MR_ToMerge_1min$BirdID=="RIHU05",], aes(y=EE_J), col="red", alpha=0.5) +
+  my_theme + colScale + #scale_color_manual(values=my_colors) +
+  theme(axis.text = element_text(size=20),
+        legend.key.height=unit(3,"line"),
+        axis.line.x = element_line(colour = "grey50"),
+        axis.line.y = element_line(colour = "grey50"), axis.line.y.right = element_line(color="red"),
+        axis.text.y.right = element_text(color="red"), axis.title.y.right = element_text(color="red")) +
+  xlab("Time of night")
+
+## RIHU11
+ggplot(agg_ir_mr[agg_ir_mr$NightID=="RIHU11_1",], aes(x=SameDate, y=Ts_max)) + facet_wrap(~NightID, scales="free") +
+  scale_y_continuous(name = SurfTemp.lab,limits = c(-1,43), sec.axis=sec_axis(trans=~./4,name='MR (J/min)'))+
+  geom_line(aes(group=NightID), alpha=0.5) +
+  geom_point(aes(col=Category), size=3) +
+  geom_line(aes(SameDate, y=Tamb), linetype="dotted", col="black", size=1) +
+  geom_point(alpha=0.8, col='red', size=3, aes(y=EE_scaled)) + 
+  geom_line(alpha=0.5, col='red', aes(y=EE_scaled)) + 
+  #geom_line(data=MR_ToMerge_1min[MR_ToMerge_1min$BirdID=="RIHU11",], aes(y=EE_J), col="red", alpha=0.5) +
+  my_theme + colScale + #scale_color_manual(values=my_colors) +
+  theme(axis.text = element_text(size=20),
+        legend.key.height=unit(3,"line"),
+        axis.line.x = element_line(colour = "grey50"),
+        axis.line.y = element_line(colour = "grey50"), axis.line.y.right = element_line(color="red"),
+        axis.text.y.right = element_text(color="red"), axis.title.y.right = element_text(color="red")) +
+  xlab("Time of night")
 
 ### All indivs, MR and IR, 1 min average for MR
 ggplot(agg_ir_mr[!is.na(agg_ir_mr$Category),], aes(x=SameDate, y=Ts_max)) + facet_wrap(~NightID) +
@@ -688,9 +759,9 @@ ggplot(agg_ir_mr[!is.na(agg_ir_mr$Category),], aes(x=SameDate, y=Ts_max)) + face
 
 
 ## All birds, IR plus MR
-ggplot(agg_ir_mr[agg_ir_mr$NightID=="BCHU03_1",], aes(x=SameDate, y=Ts_max)) + facet_wrap(.~NightID, scales="free") +
+ggplot(agg_ir_mr[agg_ir_mr$BirdID=="BCHU03_1",], aes(x=SameDate, y=Ts_max)) + facet_wrap(.~BirdID, scales="free") +
   scale_y_continuous(name = SurfTemp.lab,limits = c(-1,43), sec.axis=sec_axis(trans=~./5,name='MR (J/min)'))+
-  geom_line(aes(group="NightID")) +
+  geom_line(aes(group="BirdID")) +
   geom_point(aes(x=SameDate, y=Ts_max, col=Category), size=4) +
   #geom_line(data=IR_ToMerge[!is.na(IR_ToMerge$Tamb),], aes(SameDate, y=Tamb), linetype="dotted", col="gray") +
   geom_point(aes(x=SameDate, y=EE_J*5), alpha=0.8, col='red', size=3) + 
@@ -731,6 +802,161 @@ ggplot(NULL, aes(x=SameDate, y=EE_J)) + facet_wrap(~BirdID) +
         axis.line.y = element_line(colour = "grey50")) +
   #scale_x_datetime(limits = ymd_hms(c("2021-07-07 21:00:00", "2021-07-08 03:00:00"))) +
   ylab("Energy expended (J) per second") + xlab("Time of night")
+
+## Plots of IR vs. MR ####
+
+## for all birds, faceted by individual
+ggplot(agg_ir_mr, aes(EE_J, Ts_max)) + geom_point(aes(col=Category), size=3.5) +
+  my_theme2 + facet_wrap(.~BirdID, scales = "free")  +
+  #colScale + 
+  xlab("Energy expenditure (J/min)") + 
+  ylab(SurfTemp.lab) + #scale_alpha_manual(values = c(0.6,0.6,0.8)) + 
+  stat_smooth(data=agg_ir_mr[agg_ir_mr$Category %in% c("Normothermy", "DeepTorpor"),],
+            aes(col=Category), method = "lm", alpha=0.2, size=1) +
+  stat_smooth(data=agg_ir_mr[agg_ir_mr$Category=="Transition",],
+              aes(col=Category), method = "lm", formula = y ~ x + I(x^2), alpha=0.2, size=1) +
+  theme(legend.key.height = unit(3,"line"))
+
+
+## IR vs MR plot for all RIHU
+## This one is good
+ggplot(agg_ir_mr[agg_ir_mr$Species=="RIHU",], aes(EE_J, Ts_max)) + geom_point(aes(col=Category), size=3.5) +
+  my_theme + #facet_wrap(.~Species, scales = "free")  +
+  colScale_named_noShallow + 
+  xlab("Energy expenditure (J/min)") + 
+  ylab(SurfTemp.lab) + #scale_alpha_manual(values = c(0.6,0.6,0.8)) + 
+  stat_smooth(data=agg_ir_mr[agg_ir_mr$Category %in% c("Normothermy", "DeepTorpor"),],
+              aes(col=Category), method = "lm", alpha=0.2, size=1) +
+  stat_smooth(data=agg_ir_mr[agg_ir_mr$Category=="Transition",],
+              aes(col=Category), method = "lm", formula = y ~ x + I(x^2), alpha=0.2, size=1) +
+  theme(legend.key.height = unit(3,"line"))
+
+## Models December 2022, just for RIHU ####
+mod_test_ID <- nlme::lme(data=na.exclude(agg_ir_mr[agg_ir_mr$Species=="RIHU",]), fixed=Ts_max ~ 
+                           EE_J + 
+                           Category,
+                         random= ~1|BirdID/Category, 
+                         correlation=corAR1(form=~1|BirdID/Category))
+
+mod_test <- nlme::lme(data=na.exclude(agg_ir_mr[agg_ir_mr$Species=="RIHU",]), fixed=Ts_max ~ 
+                        EE_J + 
+                        Category,
+                      random= ~1|Category)
+
+acf(resid(mod_test), plot=F)
+summary(mod_test, correlation=T)
+coef(mod_test)
+intervals(mod_test)
+acf(resid(mod_test))
+em <- emmeans(mod_test,  ~Category)
+em
+plot(residuals(mod_test),type="b")
+abline(h=0,lty=3)
+summary(mod_test)$tTable
+
+## Trying out models for Emily SICB 2023 poster. RIHU models per metabolic state
+library(sjPlot)
+tab_model(mod_test)
+
+mod_test_0 <- glm(data=agg_ir_mr[agg_ir_mr$Species=="RIHU" & agg_ir_mr$Category %in% c("Normothermy", "DeepTorpor"),], formula = Ts_max ~ EE_J+Category)
+mod_test_lm <- lmerTest::lmer(data=agg_ir_mr[agg_ir_mr$Species=="RIHU" & agg_ir_mr$Category %in% c("Normothermy", "DeepTorpor"),], formula = Ts_max ~ EE_J+ (1|Category))
+
+acf(resid(mod_test_lm), plot=F)
+summary(mod_test_lm)
+coef(mod_test_lm)
+intervals(mod_test_lm)
+acf(resid(mod_test_lm))
+em <- emmeans(mod_test_lm, ~Category)
+em
+plot(residuals(mod_test_lm),type="b")
+abline(h=0,lty=3)
+summary(mod_test_lm)$tTable
+tab_model(mod_test_lm)
+test(em)
+
+
+acf(resid(mod_test_0), plot=F)
+summary(mod_test_0)
+coef(mod_test_0)
+intervals(mod_test_0)
+acf(resid(mod_test_0))
+em_0 <- emmeans(mod_test_0, ~Category)
+em_0
+plot(residuals(mod_test_0),type="b")
+abline(h=0,lty=3)
+summary(mod_test_0)$tTable
+tab_model(mod_test_0)
+test(em_0)
+
+agg_ir_mr$EE_J2 <- 0
+agg_ir_mr$EE_J2[agg_ir_mr$Category=="Transition"] <- (agg_ir_mr$EE_J[agg_ir_mr$Category=="Transition"])^2
+
+
+mod_test_tr <- glm(data=agg_ir_mr[agg_ir_mr$Species=="RIHU" & agg_ir_mr$Category=="Transition",], formula = Ts_max ~ EE_J+EE_J2)
+
+acf(resid(mod_test_tr), plot=F)
+summary(mod_test_tr)
+coef(mod_test_tr)
+intervals(mod_test_tr)
+acf(resid(mod_test_tr))
+em_tr <- emmeans(mod_test_tr,)
+em_tr
+plot(residuals(mod_test_tr),type="b")
+abline(h=0,lty=3)
+summary(mod_test_tr)$tTable
+tab_model(mod_test_tr)
+test(em_tr)
+
+
+mod_test_nor <- glm(data=agg_ir_mr[agg_ir_mr$Species=="RIHU" & agg_ir_mr$Category=="Normothermy",], formula = Ts_max ~ EE_J)
+
+acf(resid(mod_test_nor), plot=F)
+summary(mod_test_nor)
+coef(mod_test_nor)
+intervals(mod_test_nor)
+acf(resid(mod_test_nor))
+em_nor <- emmeans(mod_test_nor,)
+em_nor
+plot(residuals(mod_test_nor),type="b")
+abline(h=0,lty=3)
+summary(mod_test_nor)$tTable
+tab_model(mod_test_nor)
+test(em_nor)
+
+
+mod_test_tor <- glm(data=agg_ir_mr[agg_ir_mr$Species=="RIHU" & agg_ir_mr$Category=="DeepTorpor",], formula = Ts_max ~ EE_J)
+
+acf(resid(mod_test_tor), plot=F)
+summary(mod_test_tor)
+coef(mod_test_tor)
+intervals(mod_test_tor)
+acf(resid(mod_test_tor))
+em_tor <- emmeans(mod_test_tor,)
+em_tor
+plot(residuals(mod_test_tor),type="b")
+abline(h=0,lty=3)
+summary(mod_test_tor)$tTable
+tab_model(mod_test_tor)
+test(em_tor)
+
+
+## Trying lm's with plyr -  3 separate lm's, one per category
+# Break up data frame by Category, then fit the specified model to each piece and
+# return a list
+models <- dlply(agg_ir_mr, "Category", function(df) 
+  lm(Ts_max ~ EE_J + EE_J2, data = df))
+
+
+
+lm(Ts_max ~ EE_J + EE_J2, data = agg_ir_mr[agg_ir_mr$Category=="Transition",])
+
+# Apply coef to each model and return a data frame
+ldply(models, coef)
+
+# Print the summary of each model
+l_ply(models, summary, .print = TRUE)
+
+tab_model(models)
 
 
 

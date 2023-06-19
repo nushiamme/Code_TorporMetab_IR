@@ -35,6 +35,11 @@ caan02 <- read.csv(here("MR", "CAAN02_0623_WholeNight_Analyzed.csv"))
 paths <- dir(here::here("MR", "Multiple_CAAN2022"), pattern = ".csv$")
 names(paths) <- basename(paths)
 
+library(rio)
+xls <- dir(here::here("MR", "Multiple_CAAN2022"), pattern = "xlsx")
+created <- mapply(convert, here::here("MR", "Multiple_CAAN2022", xls), gsub("xlsx", "csv", here::here("MR", "Multiple_CAAN2022", xls)))
+# unlink(xls) # delete xlsx files
+
 caan_multiple <- read.csv(here("MR", "Multiple_CAAN2022", "MR_summary_EE_Tc.csv"))
 
 
