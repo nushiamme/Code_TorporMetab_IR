@@ -1,13 +1,13 @@
-**Paper authors: **
+**Paper authors: <fill in>**
 
 Code by: Anusha Shankar, github/nushiamme; contact: nushiamme\<at\>gmail\<dot\>com for questions about code/datasets
 
 
 #### Zenodo archive
-
+<fill in>
 
 #### Abstract
-
+<fill in>
 
 #### Code organisation
 
