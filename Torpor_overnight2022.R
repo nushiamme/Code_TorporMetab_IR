@@ -3,8 +3,6 @@
 ## Data collected by Emily Blackwell, Anusha Shankar
 ## Collaboration with Don Powers
 
-#test 
-
 ## For just MR data
 library(caTools)
 library(png)
