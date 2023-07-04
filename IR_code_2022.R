@@ -13,8 +13,9 @@ library(dplyr) ## for renaming columns etc.
 library(plyr)
 
 #here <- here::here()
-ir_dat <- read.csv(here::here("IR", "IR_data_2022.csv"))
-#Temps <- read.csv(here::here("IR", "Thermocouple_Temps.csv"))
+ir_dat_caan <- read.csv(here::here("IR", "IR_data_CAAN2022.csv"))
+ir_dat <- read.csv(here::here("IR", "IR_data_SWRS2022.csv"))
+#Temps <- read.csv(here::here("IR", "Thermocouple_Temps_2021.csv")) #From 2021
 
 ## General functions
 ## Generic plot theme
@@ -26,6 +27,11 @@ my_theme_blank <- theme_classic(base_size = 30) +
         panel.border = element_blank())
 
 my_colors <- c("#23988aff", "#440558ff", "#9ed93aff")
+my_colors_four <- c("#23988aff", "#440558ff", "#9ed93aff", "darkgoldenrod2") #NTDA to match AZ birds
+my_colors_five <- c("#23988aff",  "#F38BA8", "#440558ff",  "#9ed93aff", "darkgoldenrod2") #NSTDA
+names(my_colors_five) <- levels(c("Normothermic", "ShallowTorpor", "Transition", "DeepTorpor", "Arousal"))
+colScale <- scale_colour_manual(name = "Category2", values = my_colors_five)
+
 
 ## Defining axis labels
 Temp.lab <- expression(atop(paste("Temperature (", degree,"C)")))
@@ -37,7 +43,7 @@ SurfTemp.lab <- expression(atop(paste("Max Surface Temperature (", degree,"C)"))
 ir_dat$BirdID[!is.na(ir_dat$Run)] <- paste0(ir_dat$BirdID[!is.na(ir_dat$Run)], "_", ir_dat$Run[!is.na(ir_dat$Run)])
 #ir_dat <- ir_dat[ir_dat$Run=="Y",]
 ##Only include values where eye region is clearly visible
-ir_dat <- ir_dat[ir_dat$Reliable=="Y",]
+ir_dat <- ir_dat[!ir_dat$ReliableTry=="N",]
 ir_dat <- ir_dat[!is.na(ir_dat$Time),]
 
 ## Processing time
@@ -70,18 +76,13 @@ ir_dat$Teye <- as.numeric(ir_dat$Teye)
 ir_dat$Tamb <- as.numeric(ir_dat$Tamb)
 ir_dat$Tc_thermocouple <- as.numeric(ir_dat$Tc_thermocouple)
 
-## 01 - Normo
-## 02 - Deep Torpor
-## 03 - Deep Torpor
-## 04 - Deep Torpor
-## 05 - Deep Torpor
-## 06 - Normo
-## 07 - Transition
-## 08 - Normo
-## 09 - Normo
-## 10 - Normo
-## 11 - Transition
-## 12 - Transition
+ir_dat$Category2 <- as.factor(ir_dat$Category2)
+levels(ir_dat$Category2) <- list(Normothermic = "N", Transition = "T", DeepTorpor = "D", Arousal = "A",
+                                 ShallowTorpor = "S")
+
+ir_dat$Category2 <- ordered(ir_dat$Category2, levels = c("Normothermic", "ShallowTorpor", "Transition",
+                                                         "DeepTorpor", "Arousal"))
+
 
 ir_dat$BirdID <- as.factor(ir_dat$BirdID)
 # ir_dat$Category <- NA
@@ -100,11 +101,11 @@ ir_dat$BirdID <- as.factor(ir_dat$BirdID)
 
 # ir_dat$Category <- factor(ir_dat$Category, levels=c("Normothermic", "Transition", "DeepTorpor"))
 
-## Add Tc and Ta column from thermocouple data into ir_dat
-Temps$DateLubri <- lubridate::ymd_hms(Temps$DateLubri)
-agg_ir <- merge(ir_dat, Temps, by="DateLubri", all.x=TRUE)
-agg_ir$AmbientTemp_C <- as.numeric(agg_ir$AmbientTemp_C)
-agg_ir$ChamberTemp_C <- as.numeric(agg_ir$ChamberTemp_C)
+## Add Tc and Ta column from thermocouple data into ir_dat - used in 2021
+#Temps$DateLubri <- lubridate::ymd_hms(Temps$DateLubri)
+#agg_ir <- merge(ir_dat, Temps, by="DateLubri", all.x=TRUE)
+#agg_ir$AmbientTemp_C <- as.numeric(agg_ir$AmbientTemp_C)
+#agg_ir$ChamberTemp_C <- as.numeric(agg_ir$ChamberTemp_C)
 
 
 ## Melting to make plotting all temp measurements together easier
@@ -113,11 +114,19 @@ m.ir_dat <- dplyr::rename(m.ir_dat, Measure = variable, Temp = value)
 m.ir_dat$Measure <- plyr::revalue(as.factor(m.ir_dat$Measure), c(Ts_max = "Surface Temp", Teye= "Eye Temp", Tamb = "Ambient Temp"))
 m.ir_dat$Temp <- as.numeric(m.ir_dat$Temp)
 
-ggplot(ir_dat, aes(DateFormat, Ts_max)) + geom_point() + #geom_point(aes(col=Tamb)) + scale_color_manual() +
-  my_theme + facet_wrap(~BirdID, scales = "free_x")
+ggplot(ir_dat[!is.na(ir_dat$Ts_max),], aes(DateFormat, Ts_max)) + geom_point(aes(col=Category2)) +
+  geom_line() + #geom_point(aes(col=Tamb)) + scale_color_manual() +
+  my_theme + facet_wrap(~BirdID, scales = "free_x") + colScale
 
 #### Plots ####
-bird1 <- ggplot(ir_dat[ir_dat$BirdID=="BCHU02",], aes(DateFormat, Ts_max)) + 
+bird1 <- ggplot(ir_dat[ir_dat$BirdID=="BCHU02_1",], aes(DateFormat, Ts_max)) + 
+  geom_point(aes(col=Category)) + my_theme +
+  geom_line(aes(col=BirdID)) +
+  #facet_grid(BirdID~., scales = "free") + ylim(0,40) +
+  theme(axis.text.x = element_text(angle=90, size = 10), axis.title.x = element_blank(),
+        legend.position = "none")
+
+ggplot(ir_dat[ir_dat$BirdID %in% c("BCHU03_1", "RIHU11_1"),], aes(DateFormat, Ts_max)) + 
   geom_point(aes(col=BirdID)) + my_theme +
   geom_line(aes(col=BirdID)) +
   #facet_grid(BirdID~., scales = "free") + ylim(0,40) +
