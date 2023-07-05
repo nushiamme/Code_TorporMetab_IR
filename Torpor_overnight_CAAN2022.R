@@ -31,8 +31,8 @@ library(glue) ## kind of like paste, using it for time axis
 #MRsumm_1min <- read.csv(here::here("MR_summary_1min_EE_Tc.csv"))
 #MRsumm <- read.csv(here::here("MR_summary_EE_Tc.csv"))
 caan02 <- read.csv(here("MR", "CAAN02_0623_WholeNight_Analyzed.csv"))
-#paths <- dir(here::here("MR", "2022_analyzed", "RIHU07_test"), pattern = ".csv$")
-paths <- dir(here::here("MR", "Multiple_CAAN2022"), pattern = ".csv$")
+paths <- dir(here::here("MR", "2022_analyzed", "RIHU07_test"), pattern = ".csv$")
+#paths <- dir(here::here("MR", "Multiple_CAAN2022"), pattern = ".csv$")
 names(paths) <- basename(paths)
 
 library(rio)
@@ -75,9 +75,13 @@ colScale <- scale_colour_manual(name = "Category", values = my_colors)
 
 #### Ignore this section if reading in MRsumm_1min data frame and/or MR_summ ####
 
-#ThermFiles <- lapply(here::here("MR", "2022_analyzed", "RIHU07_test", paths), read.csv, header=T)
-ThermFiles <- lapply(here::here("MR", "Multiple_CAAN2022", paths), read.csv, header=T)
+ThermFiles <- lapply(here::here("MR", "2022_analyzed", "RIHU07_test", paths), read.csv, header=T)
+#ThermFiles <- lapply(here::here("MR", "Multiple_CAAN2022", paths), read.csv, header=T)
 
+# 
+# lis <- lapply(ThermFiles, lapply, length)
+# names(lis) <- lapply(ThermFiles, length)
+# do.call(rbind.data.frame, lis)
 
 ThermDat <- do.call(rbind.data.frame, ThermFiles)
 
