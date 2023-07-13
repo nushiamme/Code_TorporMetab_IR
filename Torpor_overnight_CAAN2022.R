@@ -45,8 +45,9 @@ caan_multiple <- read.csv(here("MR", "MR_CAAN2022_summary_EE_Tc.csv"))
 
 ## For IR
 ir_dat <- read.csv(here::here("IR", "IR_data_CAAN2022.csv"))
-#categories <- read.csv(here::here("IR", "Category_Entry.csv"))
-#categories$BirdID <- as.factor(categories$BirdID)
+categories <- read.csv(here::here("IR", "Category_Entry_CAAN2022.csv"), )
+categories <- select(categories, -c(Category, Surf_Temp, Isoflurane_start, Success))
+categories$RunID <- as.factor(categories$RunID)
 
 # Temps <- read.csv(here::here("IR", "Thermocouple_Temps.csv"))
 
@@ -338,37 +339,56 @@ IR_ToMerge$RunID <- as.factor(IR_ToMerge$RunID)
 
 agg_ir_mr <- merge(IR_ToMerge, MR_ToMerge_1min,  by=c("SameDate", "RunID"))
 agg_ir_mr$RunID <- as.factor(agg_ir_mr$RunID)
-# m.agg <- merge(agg_ir_mr, categories)
-# m.agg$Category <- factor(m.agg$Category, levels=c("Normothermic", "Transition", "DeepTorpor"))
-# 
-# m.agg$TransiHour<- str_pad(substr(m.agg$Time_TransitionStart, 1, 2), width=2, side="left", pad="0")
-# m.agg$TransiHour[m.agg$TransiHour==24] <- "00"
-# m.agg$TransiMin<- str_pad(substr(m.agg$Time_TransitionStart, 3, 4), width=2, side="left", pad="0")
-# m.agg$TransitionTime <- as.POSIXct(paste(paste("2021", "7", "23", sep = "-"), 
-#                                           paste(m.agg$TransiHour, 
-#                                                 m.agg$TransiMin, "00", sep = ":"), sep=" "),
-#                                     format='%Y-%m-%d %H:%M', tz="America/Los_Angeles")
-# m.agg$TransitionTime[!is.na(m.agg$TransiHour) & m.agg$TransiHour<19] <- m.agg$TransitionTime[!is.na(m.agg$TransiHour) & m.agg$TransiHour<19]+86400
-# 
-# 
-# m.agg$TorporHour<- str_pad(m.agg$Time_DeepTorporStart, width=4, side="left", pad="0")
-# m.agg$TorporHour<- substr(m.agg$TorporHour, 1, 2)
-# m.agg$TorporHour[m.agg$TorporHour==24] <- "00"
-# m.agg$TorporMin<- str_pad(substr(m.agg$Time_DeepTorporStart, 3, 4), width=2, side="left", pad="0")
-# m.agg$DeepTorporTime <- as.POSIXct(paste(paste("2021", "7", "23", sep = "-"), 
-#                                          paste(m.agg$TorporHour, 
-#                                                m.agg$TorporMin, "00", sep = ":"), sep=" "),
-#                                    format='%Y-%m-%d %H:%M', tz="America/Los_Angeles")
-# m.agg$DeepTorporTime[!is.na(m.agg$TorporHour) & m.agg$TorporHour<19] <- m.agg$DeepTorporTime[!is.na(m.agg$TorporHour) & m.agg$TorporHour<19]+86400
-# 
-# ggplot(m.agg, aes(EE_J, Ts_max)) + geom_point(aes(col=Category)) + my_theme + facet_wrap(.~BirdID)  +
-#   colScale
-#library(scales)
-# ir_rihu <- ggplot(data=NULL, aes(SameDate, EE_J)) + #geom_point(data=MR_ToMerge_1min, aes(SameDate, EE_J), col="black") + 
-#   my_theme +
-#   geom_point(data=rihu07, aes(SameDate, Ts_max), col='red') +
-#   theme(axis.text.x = element_text(size=10, angle = 90, vjust=0.5))
-# 
+
+
+## Merge with categories sheet
+m.agg <- merge(agg_ir_mr, categories,by = "RunID")
+#m.agg$Category <- factor(m.agg$Category, levels=c("Normothermic", "Transition", "DeepTorpor", "Arousal"))
+
+m.agg$Time_transitionStart<- str_pad(m.agg$Time_transitionStart, width=4, side="left", pad="0")
+m.agg$TransiHour<- str_pad(substr(m.agg$Time_transitionStart, 1, 2), width=2, side="left", pad="0")
+m.agg$TransiHour[m.agg$TransiHour==24] <- "00"
+m.agg$TransiMin<- str_pad(substr(m.agg$Time_transitionStart, 3, 4), width=2, side="left", pad="0")
+m.agg$TransitionTime <- as.POSIXct(paste(paste("2022", "7", "22", sep = "-"),
+                                          paste(m.agg$TransiHour,
+                                                m.agg$TransiMin, "00", sep = ":"), sep=" "),
+                                    format='%Y-%m-%d %H:%M', tz="America/Los_Angeles")
+m.agg$TransitionTime[!is.na(m.agg$TransiHour) & m.agg$TransiHour<19] <- 
+  m.agg$TransitionTime[!is.na(m.agg$TransiHour) & m.agg$TransiHour<19]+86400
+
+
+m.agg$TimeDeepTorporStart<- str_pad(m.agg$TimeDeepTorporStart, width=4, side="left", pad="0")
+m.agg$TorporHour<- substr(m.agg$TimeDeepTorporStart, 1, 2)
+m.agg$TorporHour[m.agg$TorporHour==24] <- "00"
+m.agg$TorporMin<- str_pad(substr(m.agg$TimeDeepTorporStart, 3, 4), width=2, side="left", pad="0")
+m.agg$DeepTorporTime <- as.POSIXct(paste(paste("2022", "7", "22", sep = "-"),
+                                         paste(m.agg$TorporHour,
+                                               m.agg$TorporMin, "00", sep = ":"), sep=" "),
+                                   format='%Y-%m-%d %H:%M', tz="America/Los_Angeles")
+m.agg$DeepTorporTime[!is.na(m.agg$TorporHour) & m.agg$TorporHour<19] <- 
+  m.agg$DeepTorporTime[!is.na(m.agg$TorporHour) & m.agg$TorporHour<19]+86400
+
+
+m.agg$TimeArousalStart<- str_pad(m.agg$TimeArousalStart, width=4, side="left", pad="0")
+m.agg$ArousalHour<- substr(m.agg$TimeArousalStart, 1, 2)
+m.agg$ArousalHour[m.agg$ArousalHour==24] <- "00"
+m.agg$ArousalMin<- str_pad(substr(m.agg$TimeArousalStart, 3, 4), width=2, side="left", pad="0")
+m.agg$ArousalTime <- as.POSIXct(paste(paste("2022", "7", "22", sep = "-"),
+                                         paste(m.agg$ArousalHour,
+                                               m.agg$ArousalMin, "00", sep = ":"), sep=" "),
+                                   format='%Y-%m-%d %H:%M', tz="America/Los_Angeles")
+m.agg$ArousalTime[!is.na(m.agg$ArousalHour) & m.agg$ArousalHour<19] <- 
+  m.agg$ArousalTime[!is.na(m.agg$ArousalHour) & m.agg$ArousalHour<19]+86400
+
+
+ggplot(m.agg, aes(EE_J, Ts_max)) + geom_point(aes(col=Category)) + my_theme + facet_wrap(.~BirdID)  +
+  colScale
+library(scales)
+ir_rihu <- ggplot(data=NULL, aes(SameDate, EE_J)) + #geom_point(data=MR_ToMerge_1min, aes(SameDate, EE_J), col="black") +
+  my_theme +
+  geom_point(data=rihu07, aes(SameDate, Ts_max), col='red') +
+  theme(axis.text.x = element_text(size=10, angle = 90, vjust=0.5))
+
 # mr_rihu <- ggplot(data=NULL, aes(SameDate, EE_J)) + geom_point(data=MR_ToMerge_1min, aes(SameDate, EE_J), col="black") + 
 #   my_theme +
 #   #geom_point(data=rihu07, aes(SameDate, Ts_max), col='red') +
