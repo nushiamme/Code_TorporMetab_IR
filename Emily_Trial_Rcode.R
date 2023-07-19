@@ -1,11 +1,11 @@
 
-addition <- 2+4
-multiplic <- 2*5
+addition <- 2 + 4
+multiplic <- 2 * 5
 
-and<- addition + multiplic
+and <- addition + multiplic
 
 #alph is a vector (only one dimension)
-alph <- c("a","b","c","d","e","f","g")
+alph <- c("a", "b", "c", "d", "e", "f", "g")
 
 #as.data.frame makes if formatted as a data frame; two dimensional
 dat <- as.data.frame(cbind(alph, star))
@@ -18,5 +18,3 @@ dat <- as.data.frame(cbind(alph, rev(star)))
 dat$star <- as.numeric(dat$star)
 
 str(dat) #this will tell you what format something actually is
-
-
